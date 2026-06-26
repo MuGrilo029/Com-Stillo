@@ -8,7 +8,7 @@ import { parseISO, formatISO, formatDisplayDate, getUUID, isInRange as utilsIsIn
 import { Transaction } from '../types';
 
 export const Financial: React.FC<{ type: 'PAYABLES' | 'RECEIVABLES' | 'BOLETOS' }> = ({ type }) => {
-  const { transactions, addTransaction, updateTransaction, deleteTransaction, splitTransactionPayment, categories, categoryGroups, addCategory, addCategoryGroup, suppliers, navigateTo, addNotification } = useAppStore();
+  const { transactions, addTransaction, updateTransaction, deleteTransaction, splitTransactionPayment, categories, categoryGroups, addCategory, addCategoryGroup, navigateTo, addNotification } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -135,12 +135,11 @@ export const Financial: React.FC<{ type: 'PAYABLES' | 'RECEIVABLES' | 'BOLETOS' 
       return categories.filter(c => c.type === 'INCOME').map(c => ({ id: c.id, name: c.name, type: 'Receita' }));
     }
     
-    // Para Payables e Boletos, junta ambos
-    const suppliersList = suppliers.map(s => ({ id: s.id, name: s.name, type: 'Fornecedor' }));
+    const supplierCats = categories.filter(c => c.type === 'SUPPLIER').map(c => ({ id: c.id, name: c.name, type: 'Fornecedor' }));
     const expenseCats = categories.filter(c => c.type === 'EXPENSE').map(c => ({ id: c.id, name: c.name, type: 'Despesa' }));
     
-    return [...suppliersList, ...expenseCats].sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, suppliers, isReceivable]);
+    return [...supplierCats, ...expenseCats].sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories, isReceivable]);
 
   // --- CÁLCULOS DE TOTAIS (Baseados nos dados filtrados) ---
   const totals = useMemo(() => {

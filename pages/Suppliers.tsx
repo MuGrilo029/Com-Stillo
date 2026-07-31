@@ -7,11 +7,16 @@ import { Supplier } from '../types';
 import { getUUID } from '../lib/utils';
 
 export const Suppliers: React.FC = () => {
-    const { suppliers, addSupplier, updateSupplier, deleteSupplier } = useAppStore();
+    const { suppliers, categories, addSupplier, updateSupplier, deleteSupplier } = useAppStore();
     const [showForm, setShowForm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [formData, setFormData] = useState<Partial<Supplier>>({});
     const [searchTerm, setSearchTerm] = useState('');
+
+    const supplierCategories = (categories || []).filter(c => c.type === 'SUPPLIER');
+    const categoryOptions = supplierCategories.length > 0 
+        ? supplierCategories.map(c => c.name) 
+        : ['Matéria Prima', 'Transporte', 'Serviços', 'Utilidades'];
 
     const handleOpenModal = (supplier?: Supplier) => {
         if (supplier) {
@@ -125,10 +130,9 @@ export const Suppliers: React.FC = () => {
                             placeholder="Ex: Matéria Prima, Transporte..."
                         />
                         <datalist id="categories">
-                            <option value="Matéria Prima" />
-                            <option value="Transporte" />
-                            <option value="Serviços" />
-                            <option value="Utilidades" />
+                            {categoryOptions.map((cat, idx) => (
+                                <option key={idx} value={cat} />
+                            ))}
                         </datalist>
                     </div>
 

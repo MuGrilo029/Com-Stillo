@@ -1414,7 +1414,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!item.by_order && item.product_id) {
             const product = data.products.find((p: Product) => p.id === item.product_id);
             if (product) {
-              await updateProduct({ ...product, quantity: product.quantity + item.quantity });
+              const restoredVariants = item.variant_id && product.variants
+                ? product.variants.map(v => v.id === item.variant_id
+                  ? { ...v, quantity: v.quantity + item.quantity }
+                  : v)
+                : product.variants;
+              await updateProduct({
+                ...product,
+                quantity: product.quantity + item.quantity,
+                variants: restoredVariants
+              });
               // Log return
               addStockMovement({
                 id: getUUID(),
@@ -1423,7 +1432,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 quantity: item.quantity, // Positive for return
                 type: 'RETURN',
                 date: new Date().toISOString(),
-                observations: `Estorno de Venda EXCLUÍDA #${id.slice(0, 4)}`
+                variantId: item.variant_id,
+                variantName: item.variant_name,
+                observations: `Estorno de Venda EXCLUÍDA #${id.slice(0, 4)}${item.variant_name ? ` - ${item.variant_name}` : ''}`
               });
             }
           }

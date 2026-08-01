@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store';
 import { Card, Button, Input, Table, Badge, Modal, Select } from '../components/UI';
-import { Plus, Trash2, AlertTriangle, DollarSign, Package, TrendingUp, TrendingDown, Upload, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { Product } from '../types';
+import { Plus, Trash2, AlertTriangle, DollarSign, Package, TrendingUp, TrendingDown, Upload, Image as ImageIcon, Loader2, Layers } from 'lucide-react';
+import { Product, ProductVariant } from '../types';
 import { supabase } from '../lib/supabase';
 import { formatDisplayDate, getUUID } from '../lib/utils';
 
@@ -16,6 +16,43 @@ export const Inventory: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [stockEntryData, setStockEntryData] = useState({ quantity: 0, cost: 0, date: new Date().toISOString().split('T')[0], observations: '' });
   const [isUploading, setIsUploading] = useState(false);
+
+  // --- VARIATIONS STATE ---
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantQty, setNewVariantQty] = useState<number>(1);
+  const [newVariantSku, setNewVariantSku] = useState('');
+
+  const handleAddVariant = () => {
+    if (!newVariantName.trim()) return;
+    const newVariant: ProductVariant = {
+      id: getUUID(),
+      name: newVariantName.trim(),
+      quantity: Number(newVariantQty) || 0,
+      sku: newVariantSku.trim() || undefined
+    };
+    const updatedVariants = [...(formData.variants || []), newVariant];
+    const totalQty = updatedVariants.reduce((acc, v) => acc + (v.quantity || 0), 0);
+    setFormData(prev => ({
+      ...prev,
+      hasVariations: true,
+      variants: updatedVariants,
+      quantity: totalQty
+    }));
+    setNewVariantName('');
+    setNewVariantQty(1);
+    setNewVariantSku('');
+  };
+
+  const handleRemoveVariant = (variantId: string) => {
+    const updatedVariants = (formData.variants || []).filter(v => v.id !== variantId);
+    const totalQty = updatedVariants.reduce((acc, v) => acc + (v.quantity || 0), 0);
+    setFormData(prev => ({
+      ...prev,
+      hasVariations: updatedVariants.length > 0 ? prev.hasVariations : false,
+      variants: updatedVariants,
+      quantity: updatedVariants.length > 0 ? totalQty : prev.quantity
+    }));
+  };
 
   // --- FILTERS STATE ---
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,8 +79,11 @@ export const Inventory: React.FC = () => {
     if (product) {
       setFormData({ ...product });
     } else {
-      setFormData({});
+      setFormData({ hasVariations: false, variants: [] });
     }
+    setNewVariantName('');
+    setNewVariantQty(1);
+    setNewVariantSku('');
     setIsUploading(false);
     setShowForm(true);
   };
@@ -86,18 +126,25 @@ export const Inventory: React.FC = () => {
     e.preventDefault();
     if (!formData.name) return;
 
-    const productData = {
+    const hasVars = !!formData.hasVariations && Array.isArray(formData.variants) && formData.variants.length > 0;
+    const computedQty = hasVars
+      ? formData.variants!.reduce((acc, v) => acc + (v.quantity || 0), 0)
+      : (Number(formData.quantity) || 0);
+
+    const productData: Product = {
       id: formData.id || getUUID(),
       name: formData.name!,
       sku: formData.sku || 'N/A',
-      quantity: Number(formData.quantity) || 0,
+      quantity: computedQty,
       price: Number(formData.price) || 0,
       cost: Number(formData.cost) || 0,
       minStock: formData.minStock !== undefined ? Number(formData.minStock) : 5,
       category: formData.category || 'Geral',
       image: formData.image || '',
       description: formData.description || '',
-      observations: formData.observations || ''
+      observations: formData.observations || '',
+      hasVariations: hasVars,
+      variants: hasVars ? formData.variants : []
     };
 
     if (formData.id) {
@@ -360,6 +407,114 @@ export const Inventory: React.FC = () => {
             />
           </div>
 
+          {/* === VARIAÇÕES DO PRODUTO === */}
+          <div className="col-span-1 md:col-span-2 mt-2">
+            <div className="flex items-center gap-3 mb-3">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={!!formData.hasVariations}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      hasVariations: checked,
+                      variants: checked ? (prev.variants || []) : []
+                    }));
+                  }}
+                />
+                <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-wine-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-wine-600 dark:peer-checked:bg-wine-500"></div>
+              </label>
+              <span className="text-sm font-semibold text-wine-700 dark:text-wine-200 flex items-center gap-1.5">
+                <Layers size={16} /> Este produto possui variações (Cor, Tamanho, etc.)
+              </span>
+            </div>
+
+            {formData.hasVariations && (
+              <div className="bg-gradient-to-br from-wine-50/60 to-wine-100/40 dark:from-slate-800 dark:to-slate-700/60 p-4 rounded-xl border border-wine-200 dark:border-slate-600 space-y-3">
+                {/* Add variant row */}
+                <div className="flex flex-wrap gap-2 items-end">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="block text-xs font-semibold text-wine-600 dark:text-wine-300 mb-1">Nome da Variação</label>
+                    <input
+                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-wine-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-wine-500 text-sm dark:text-white"
+                      placeholder="Ex: Azul, P, 110V..."
+                      value={newVariantName}
+                      onChange={e => setNewVariantName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddVariant(); } }}
+                    />
+                  </div>
+                  <div className="w-20">
+                    <label className="block text-xs font-semibold text-wine-600 dark:text-wine-300 mb-1">Qtd</label>
+                    <input
+                      type="number"
+                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-wine-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-wine-500 text-sm dark:text-white"
+                      value={newVariantQty}
+                      onChange={e => setNewVariantQty(Number(e.target.value))}
+                      min={0}
+                    />
+                  </div>
+                  <div className="w-24">
+                    <label className="block text-xs font-semibold text-wine-600 dark:text-wine-300 mb-1">SKU (opc.)</label>
+                    <input
+                      className="w-full px-3 py-2 rounded-lg bg-white dark:bg-slate-800 border border-wine-200 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-wine-500 text-sm dark:text-white"
+                      placeholder="SKU"
+                      value={newVariantSku}
+                      onChange={e => setNewVariantSku(e.target.value)}
+                    />
+                  </div>
+                  <Button type="button" onClick={handleAddVariant}>
+                    <Plus size={16} /> Adicionar
+                  </Button>
+                </div>
+
+                {/* Variant list */}
+                {(formData.variants || []).length > 0 && (
+                  <div className="space-y-1.5 mt-2">
+                    <p className="text-xs font-bold text-wine-700 dark:text-wine-200 uppercase tracking-wider">
+                      Variações Cadastradas ({formData.variants!.length})
+                    </p>
+                    {formData.variants!.map((v, idx) => (
+                      <div key={v.id} className="flex items-center gap-2 bg-white dark:bg-slate-800 px-3 py-2 rounded-lg border border-wine-100 dark:border-slate-600">
+                        <span className="w-5 text-xs text-wine-400 font-mono">{idx + 1}.</span>
+                        <span className="flex-1 font-medium text-sm text-wine-900 dark:text-white">{v.name}</span>
+                        {v.sku && <span className="text-xs text-wine-400 font-mono">{v.sku}</span>}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-wine-500 dark:text-wine-300">Qtd:</span>
+                          <input
+                            type="number"
+                            className="w-16 px-2 py-1 text-sm text-center rounded bg-wine-50 dark:bg-slate-700 border border-wine-200 dark:border-slate-500 focus:outline-none focus:ring-1 focus:ring-wine-400 dark:text-white"
+                            value={v.quantity}
+                            min={0}
+                            onChange={e => {
+                              const newQty = Number(e.target.value) || 0;
+                              const updatedVars = formData.variants!.map(vv =>
+                                vv.id === v.id ? { ...vv, quantity: newQty } : vv
+                              );
+                              const totalQty = updatedVars.reduce((acc, vv) => acc + vv.quantity, 0);
+                              setFormData(prev => ({ ...prev, variants: updatedVars, quantity: totalQty }));
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveVariant(v.id)}
+                          className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="text-right text-xs font-bold text-wine-700 dark:text-wine-200 mt-1">
+                      Total em Estoque: {formData.variants!.reduce((acc, v) => acc + (v.quantity || 0), 0)} un.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <Input
             label="Preço Venda (R$)"
             type="number"
@@ -372,12 +527,22 @@ export const Inventory: React.FC = () => {
             value={formData.cost || ''}
             onChange={e => setFormData({ ...formData, cost: Number(e.target.value) })}
           />
-          <Input
-            label="Qtd Atual"
-            type="number"
-            value={formData.quantity || ''}
-            onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
-          />
+          {!formData.hasVariations && (
+            <Input
+              label="Qtd Atual"
+              type="number"
+              value={formData.quantity || ''}
+              onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
+            />
+          )}
+          {formData.hasVariations && (formData.variants || []).length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-wine-700 dark:text-wine-200 uppercase tracking-wide mb-1">Qtd Total (Auto)</label>
+              <div className="px-4 py-3 rounded-lg bg-wine-50 dark:bg-slate-700 border border-wine-200 dark:border-slate-600 text-sm font-bold text-wine-900 dark:text-white">
+                {formData.variants!.reduce((acc, v) => acc + (v.quantity || 0), 0)} un.
+              </div>
+            </div>
+          )}
           <Input
             label="Estoque Mínimo"
             type="number"
@@ -534,7 +699,14 @@ export const Inventory: React.FC = () => {
                 <div className="flex items-center gap-3">
                   {p.image && <img src={p.image} className="w-8 h-8 rounded-lg object-cover border border-wine-100" alt="" />}
                   <div className="flex flex-col">
-                    <span className="font-bold text-wine-900 dark:text-wine-100">{p.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-wine-900 dark:text-wine-100">{p.name}</span>
+                      {p.hasVariations && p.variants && p.variants.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-wine-100 dark:bg-wine-800/40 text-wine-600 dark:text-wine-300 text-[10px] font-bold rounded-full">
+                          <Layers size={10} /> {p.variants.length}
+                        </span>
+                      )}
+                    </div>
                     {p.observations && (
                       <span className="text-[10px] text-amber-700 dark:text-amber-400 font-medium truncate max-w-[220px]" title={`Obs: ${p.observations}`}>
                         Obs: {p.observations}
@@ -546,7 +718,20 @@ export const Inventory: React.FC = () => {
               <td className="py-3 px-4 text-xs font-bold text-wine-400 dark:text-slate-400">{p.category || '-'}</td>
               <td className="py-3 px-4 text-wine-900 dark:text-wine-100">R$ {p.cost.toFixed(2)}</td>
               <td className="py-3 px-4 font-black text-wine-900 dark:text-wine-100">R$ {p.price.toFixed(2)}</td>
-              <td className="py-3 px-4 text-wine-900 dark:text-wine-100 truncate">{p.quantity}</td>
+              <td className="py-3 px-4 text-wine-900 dark:text-wine-100">
+                <div className="flex flex-col">
+                  <span>{p.quantity}</span>
+                  {p.hasVariations && p.variants && p.variants.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {p.variants.map(v => (
+                        <span key={v.id} className="text-[9px] px-1 py-0.5 bg-wine-50 dark:bg-slate-700 rounded text-wine-500 dark:text-wine-300 whitespace-nowrap">
+                          {v.name}: {v.quantity}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </td>
               <td className="py-3 px-4 text-xs text-wine-500 dark:text-slate-400 font-mono">
                 {p.entryDate ? formatDisplayDate(p.entryDate) : '-'}
               </td>

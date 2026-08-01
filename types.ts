@@ -22,6 +22,16 @@ export interface Transaction {
   paymentMethod?: string;
 }
 
+export interface ProductVariant {
+  id: string;
+  name: string; // e.g. "Azul / M" or "Vermelho"
+  sku?: string;
+  quantity: number;
+  price?: number;
+  cost?: number;
+  attributes?: Record<string, string>;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -35,12 +45,16 @@ export interface Product {
   description?: string;
   observations?: string;
   entryDate?: string;
+  hasVariations?: boolean;
+  variants?: ProductVariant[];
 }
 
 export interface QuoteItem {
   id: string;
   quoteId: string;
   productId?: string;
+  variantId?: string;
+  variantName?: string;
   productName: string;
   productSku: string;
   category?: string;
@@ -124,6 +138,8 @@ export interface FurnitureSpecs {
 export interface SaleItem {
   id?: string; // Database ID for the item record
   productId?: string;
+  variantId?: string;
+  variantName?: string;
   productName: string;
   description?: string;
   quantity: number;

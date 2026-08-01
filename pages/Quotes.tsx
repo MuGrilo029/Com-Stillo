@@ -10,6 +10,8 @@ import { ServiceConfigForm } from '../components/ServiceConfigForm';
 
 interface CartItem extends Product {
     quantity: number;
+    variantId?: string;
+    variantName?: string;
     // Service Fields
     serviceType?: 'INTERNAL' | 'OUTSOURCED';
     serviceSpecs?: string;
@@ -64,6 +66,8 @@ export const Quotes: React.FC = () => {
     const [showCustomItemModal, setShowCustomItemModal] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [customItemForm, setCustomItemForm] = useState({ name: '', price: '', image: '', description: '', category: 'Personalizado' });
+    const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+    const [selectedVariantId, setSelectedVariantId] = useState('');
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -208,7 +212,9 @@ export const Quotes: React.FC = () => {
                 description: i.description || originalProduct?.description,
                 cartId: `${i.productId} - ${getUUID()}`,
                 serviceType: i.serviceType,
-                serviceSpecs: i.serviceSpecs
+                serviceSpecs: i.serviceSpecs,
+                variantId: i.variantId,
+                variantName: i.variantName
             } as CartItem;
         });
         setCart(loadedCart);
@@ -241,6 +247,8 @@ export const Quotes: React.FC = () => {
                 category: i.category || originalProduct?.category || '',
                 image: i.image || originalProduct?.image,
                 description: i.description || originalProduct?.description,
+                variantId: i.variantId,
+                variantName: i.variantName,
             } as CartItem;
         });
         setCart(loadedCart);
@@ -250,19 +258,29 @@ export const Quotes: React.FC = () => {
         }, 150);
     };
 
-    const addToCart = (product: Product) => {
+    const addProductToCart = (product: Product, variantId?: string) => {
+        const variant = product.variants?.find(v => v.id === variantId);
         setCart(prev => {
             // If it's a service, always add as a new row to allow different configs
             if (product.category === 'Serviços') {
                 return [...prev, { ...product, quantity: 1, cartId: `${product.id} - ${getUUID()}` }];
             }
 
-            const exists = prev.find(item => item.id === product.id && item.category !== 'Serviços');
+            const exists = prev.find(item => item.id === product.id && item.variantId === variantId && item.category !== 'Serviços');
             if (exists) {
-                return prev.map(item => item.id === product.id && item.category !== 'Serviços' ? { ...item, quantity: item.quantity + 1 } : item);
+                return prev.map(item => item.id === product.id && item.variantId === variantId && item.category !== 'Serviços' ? { ...item, quantity: item.quantity + 1 } : item);
             }
-            return [...prev, { ...product, quantity: 1, cartId: `${product.id} - ${getUUID()}` }];
+            return [...prev, { ...product, price: variant?.price ?? product.price, quantity: 1, variantId, variantName: variant?.name, cartId: `${product.id} - ${getUUID()}` }];
         });
+    };
+
+    const addToCart = (product: Product) => {
+        if (product.hasVariations && product.variants?.length) {
+            setVariantProduct(product);
+            setSelectedVariantId(product.variants.find(v => v.quantity > 0)?.id || product.variants[0].id);
+            return;
+        }
+        addProductToCart(product);
     };
 
     const updateServiceDetails = (type: 'INTERNAL' | 'OUTSOURCED', specs: string) => {
@@ -304,7 +322,8 @@ export const Quotes: React.FC = () => {
         setCart(prev => prev.map(item => {
             if (item.cartId === cartId) {
                 const newQty = Math.max(1, item.quantity + delta);
-                return { ...item, quantity: newQty };
+                const available = item.variantId ? item.variants?.find(v => v.id === item.variantId)?.quantity : item.quantity;
+                return { ...item, quantity: Math.min(available && available > 0 ? available : newQty, newQty) };
             }
             return item;
         }));
@@ -371,6 +390,8 @@ export const Quotes: React.FC = () => {
                 id: getUUID(),
                 quoteId: editingId || '',
                 productId: item.id.startsWith('AVULSO') ? undefined : item.id,
+                variantId: item.variantId,
+                variantName: item.variantName,
                 productName: item.name,
                 productSku: item.sku,
                 category: item.category,
@@ -399,6 +420,8 @@ export const Quotes: React.FC = () => {
                 deliveryType: 'PICKUP', // Default, user can change in POS
                 items: q.items.map(i => ({
                     productId: i.productId,
+                    variantId: i.variantId,
+                    variantName: i.variantName,
                     productName: i.productName,
                     quantity: i.quantity,
                     unitPrice: i.unitPrice,
@@ -793,7 +816,7 @@ export const Quotes: React.FC = () => {
                                 {cart.map(item => (
                                     <div key={item.cartId} className="flex justify-between text-sm border-b border-gray-100 dark:border-slate-700 pb-2">
                                         <div className="flex flex-col">
-                                            <span className="font-medium">{item.quantity}x {item.name}</span>
+                                            <span className="font-medium">{item.quantity}x {item.name}{item.variantName ? ` — ${item.variantName}` : ''}</span>
                                             <span className="text-xs text-gray-500">{item.sku}</span>
                                             {item.category === 'Serviços' && item.serviceType && (
                                                 <span className="text-[10px] text-wine-600 font-bold bg-wine-50 px-1 rounded w-fit">
@@ -926,6 +949,18 @@ export const Quotes: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col">
+            <Modal isOpen={!!variantProduct} onClose={() => setVariantProduct(null)} title="Selecionar variação">
+                {variantProduct && (
+                    <div className="space-y-4">
+                        <p className="font-bold text-wine-900 dark:text-white">{variantProduct.name}</p>
+                        <Select label="Variação" value={selectedVariantId} onChange={e => setSelectedVariantId(e.target.value)}>
+                            {variantProduct.variants?.map(v => <option key={v.id} value={v.id} disabled={v.quantity <= 0}>{v.name} — {v.quantity} disponível(is)</option>)}
+                        </Select>
+                        <p className="text-sm text-wine-600 dark:text-wine-300">Estoque disponível: {variantProduct.variants?.find(v => v.id === selectedVariantId)?.quantity || 0} unidade(s)</p>
+                        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setVariantProduct(null)}>Cancelar</Button><Button disabled={!variantProduct.variants?.find(v => v.id === selectedVariantId && v.quantity > 0)} onClick={() => { addProductToCart(variantProduct, selectedVariantId); setVariantProduct(null); }}>Adicionar</Button></div>
+                    </div>
+                )}
+            </Modal>
             {/* Main Content Area */}
             {view === 'HISTORY' ? renderHistory() : (
                 step === 'POS' ? renderPOS() : (
@@ -1036,6 +1071,7 @@ export const Quotes: React.FC = () => {
                                     {item.description && (
                                         <p className="text-[10px] text-slate-500 italic mt-1 leading-tight">{item.description}</p>
                                     )}
+                                    {item.variantName && <p className="text-[10px] text-wine-600 font-bold mt-1">Variação: {item.variantName}</p>}
                                     {item.serviceSpecs && (
                                         <p className="text-[9px] text-wine-600 font-bold mt-1 uppercase tracking-tight">Obs: {item.serviceSpecs}</p>
                                     )}

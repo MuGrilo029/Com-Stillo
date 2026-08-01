@@ -16,6 +16,8 @@ interface CartItem extends Product {
   // Optional database record id for editing
   recordId?: string;
   productId?: string; // Optional for custom items (Avulso)
+  variantId?: string;
+  variantName?: string;
 }
 
 type SalesStep = 'POS' | 'CHECKOUT' | 'CONFIRM';
@@ -197,6 +199,8 @@ export const Sales: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lastSale, setLastSale] = useState<any>(null); // To store the last sale for printing
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+  const [selectedVariantId, setSelectedVariantId] = useState('');
 
   // Track loaded ID to prevent re-running useEffect and overwriting user changes
   const loadedSaleIdRef = React.useRef<string | null>(null);
@@ -253,6 +257,8 @@ export const Sales: React.FC = () => {
             image: originalProduct?.image,
             serviceType: item.serviceType,
             serviceSpecs: item.serviceSpecs,
+            variantId: item.variantId,
+            variantName: item.variantName,
             recordId: item.id, // Store the original sale item ID as recordId
             byOrder: item.byOrder // Persist byOrder flag
           } as CartItem;
@@ -297,6 +303,8 @@ export const Sales: React.FC = () => {
             image: originalProduct?.image,
             serviceType: item.serviceType,
             serviceSpecs: item.serviceSpecs,
+            variantId: item.variantId,
+            variantName: item.variantName,
             // No recordId since it's a new sale
           } as CartItem;
         });
@@ -367,21 +375,35 @@ export const Sales: React.FC = () => {
     return (amount * fee.percentage) / 100;
   };
 
-  const addToCart = (product: Product) => {
+  const addProductToCart = (product: Product, variantId?: string) => {
+    const variant = product.variants?.find(v => v.id === variantId);
     setCart(prev => {
       // If it's a service, always add as a new row to allow different configs
       if (product.category === 'Serviços') {
         return [...prev, { ...product, cartQty: 1, productId: product.id, id: `${product.id} -${getUUID()} ` }];
       }
 
-      const exists = prev.find(item => item.productId === product.id && !item.serviceType);
-      if (exists) return prev.map(item => item.productId === product.id && !item.serviceType ? { ...item, cartQty: item.cartQty + 1 } : item);
-      return [...prev, { ...product, cartQty: 1, productId: product.id, id: getUUID() }];
+      const exists = prev.find(item => item.productId === product.id && item.variantId === variantId && !item.serviceType);
+      if (exists) return prev.map(item => item.productId === product.id && item.variantId === variantId && !item.serviceType ? { ...item, cartQty: item.cartQty + 1 } : item);
+      return [...prev, { ...product, price: variant?.price ?? product.price, cartQty: 1, productId: product.id, id: getUUID(), variantId, variantName: variant?.name }];
     });
   };
 
+  const addToCart = (product: Product) => {
+    if (product.hasVariations && product.variants?.length) {
+      setVariantProduct(product);
+      setSelectedVariantId(product.variants.find(v => v.quantity > 0)?.id || product.variants[0].id);
+      return;
+    }
+    addProductToCart(product);
+  };
+
   const removeFromCart = (id: string) => setCart(prev => prev.filter(item => item.id !== id));
-  const updateQuantity = (id: string, delta: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, cartQty: Math.max(1, item.cartQty + delta) } : item));
+  const updateQuantity = (id: string, delta: number) => setCart(prev => prev.map(item => {
+    if (item.id !== id) return item;
+    const available = item.variantId ? item.variants?.find(v => v.id === item.variantId)?.quantity : item.quantity;
+    return { ...item, cartQty: Math.min(available && available > 0 ? available : item.cartQty + delta, Math.max(1, item.cartQty + delta)) };
+  }));
   const updatePrice = (id: string, newPrice: number) => setCart(prev => prev.map(item => item.id === id ? { ...item, price: newPrice } : item));
 
   const selectCustomer = (c: Customer) => {
@@ -434,6 +456,8 @@ export const Sales: React.FC = () => {
           quantity: item.cartQty,
           unitPrice: item.price,
           category: item.category,
+          variantId: item.variantId,
+          variantName: item.variantName,
           serviceType: item.serviceType,
           serviceSpecs: item.serviceSpecs,
           id: item.recordId // If editing, preserve the original sale item ID (optional, but good for reference)
@@ -506,6 +530,19 @@ export const Sales: React.FC = () => {
 
   return (
     <>
+      <Modal isOpen={!!variantProduct} onClose={() => setVariantProduct(null)} title="Selecionar variação">
+        {variantProduct && (
+          <div className="space-y-4">
+            <p className="font-bold text-wine-900 dark:text-white">{variantProduct.name}</p>
+            <Select label="Variação" value={selectedVariantId} onChange={e => setSelectedVariantId(e.target.value)}>
+              {variantProduct.variants?.map(v => <option key={v.id} value={v.id} disabled={v.quantity <= 0}>{v.name} — {v.quantity} disponível(is)</option>)}
+            </Select>
+            <p className="text-sm text-wine-600 dark:text-wine-300">Estoque disponível: {variantProduct.variants?.find(v => v.id === selectedVariantId)?.quantity || 0} unidade(s)</p>
+            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setVariantProduct(null)}>Cancelar</Button><Button disabled={!variantProduct.variants?.find(v => v.id === selectedVariantId && v.quantity > 0)} onClick={() => { addProductToCart(variantProduct, selectedVariantId); setVariantProduct(null); }}>Adicionar</Button></div>
+          </div>
+        )}
+      </Modal>
+
       {showServiceModal && serviceItems[currentServiceIndex] && (
         <Modal isOpen={showServiceModal} onClose={() => setShowServiceModal(false)} title="Configuração de Serviço">
           <ServiceConfigForm item={serviceItems[currentServiceIndex]} onConfirm={updateServiceDetails} />

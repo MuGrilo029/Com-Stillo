@@ -84,6 +84,10 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Variações de produto são armazenadas como JSONB no produto pai.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS has_variations BOOLEAN DEFAULT FALSE;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS variants JSONB DEFAULT '[]'::jsonb;
+
 -- 7. VENDAS
 CREATE TABLE IF NOT EXISTS sales (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -120,6 +124,9 @@ CREATE TABLE IF NOT EXISTS sale_items (
   color TEXT,
   by_order BOOLEAN DEFAULT FALSE
 );
+
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS variant_id UUID;
+ALTER TABLE sale_items ADD COLUMN IF NOT EXISTS variant_name TEXT;
 
 -- 9. TRANSAÇÕES FINANCEIRAS
 CREATE TABLE IF NOT EXISTS transactions (
@@ -233,6 +240,9 @@ CREATE TABLE IF NOT EXISTS quote_items (
   description TEXT
 );
 
+ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS variant_id UUID;
+ALTER TABLE quote_items ADD COLUMN IF NOT EXISTS variant_name TEXT;
+
 -- 15. PEDIDOS (COMPRA/FORNECEDOR)
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -270,23 +280,28 @@ ALTER TABLE category_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transaction_payments ENABLE ROW LEVEL SECURITY;
 
 -- 1. PROFILES: Cada usuário vê o seu próprio, admins vêm todos.
+DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
 CREATE POLICY "Users can view their own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 CREATE POLICY "Admins can view all profiles" ON profiles
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> '{ADMIN}')
   );
 
+DROP POLICY IF EXISTS "Admins can update profiles" ON profiles;
 CREATE POLICY "Admins can update profiles" ON profiles
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> '{ADMIN}')
   );
 
 -- 2. Configurações da Empresa: Todos logados lêem, apenas Admins editam.
+DROP POLICY IF EXISTS "Authenticated can view settings" ON company_settings;
 CREATE POLICY "Authenticated can view settings" ON company_settings
   FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Admins can update settings" ON company_settings;
 CREATE POLICY "Admins can update settings" ON company_settings
   FOR ALL TO authenticated USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> '{ADMIN}')
@@ -304,6 +319,10 @@ BEGIN
   FOREACH t IN ARRAY tables LOOP
     -- Drop old policy if exists
     EXECUTE format('DROP POLICY IF EXISTS "Allow all for authenticated" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Authenticated read" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Authenticated insert" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Authenticated update" ON %I', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Admins delete" ON %I', t);
     
     -- Read access for all authenticated
     EXECUTE format('CREATE POLICY "Authenticated read" ON %I FOR SELECT TO authenticated USING (true)', t);
@@ -366,7 +385,11 @@ VALUES ('products', 'products', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage Policies
+DROP POLICY IF EXISTS "Public Read" ON storage.objects;
 CREATE POLICY "Public Read" ON storage.objects FOR SELECT USING (bucket_id = 'products');
+DROP POLICY IF EXISTS "Auth Insert" ON storage.objects;
 CREATE POLICY "Auth Insert" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'products' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Auth Update" ON storage.objects;
 CREATE POLICY "Auth Update" ON storage.objects FOR UPDATE WITH CHECK (bucket_id = 'products' AND auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Auth Delete" ON storage.objects;
 CREATE POLICY "Auth Delete" ON storage.objects FOR DELETE USING (bucket_id = 'products' AND auth.role() = 'authenticated');

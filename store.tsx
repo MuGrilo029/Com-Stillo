@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Transaction, TransactionStatus, Product, Supplier, Sale, Delivery, User, Customer, AppView, CompanySettings, Category, CategoryGroup, ProductionOrder, FurnitureSpecs, Notification, Quote, Order, StockMovement, CardFee } from './types';
+import { Transaction, TransactionStatus, Product, ProductVariant, Supplier, Sale, Delivery, User, Customer, AppView, CompanySettings, Category, CategoryGroup, ProductionOrder, FurnitureSpecs, Notification, Quote, Order, StockMovement, CardFee } from './types';
 import { supabase } from './lib/supabase';
 import { parseISO, formatISO, isSameMonth, getUUID } from './lib/utils';
 
@@ -266,7 +266,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         category: p.category || 'Geral',
         image: p.image || '',
         description: p.description || '',
-        entryDate: p.entry_date || todayStr.split('T')[0]
+        observations: p.observations || '',
+        entryDate: p.entry_date || todayStr.split('T')[0],
+        hasVariations: !!p.has_variations || (Array.isArray(p.variants) && p.variants.length > 0),
+        variants: Array.isArray(p.variants) ? p.variants : []
       }));
 
       const formattedSuppliers = (suppliersData || []).map((s: any) => ({
@@ -339,7 +342,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cardFeePercentage: Number(s.card_fee_percentage) || 0,
         cardInstallments: Number(s.card_installments) || 0,
         items: s.sale_items?.map((i: any) => ({
-          id: i.id, productId: i.product_id, productName: i.product_name, description: i.description, quantity: i.quantity, unitPrice: i.unit_price, category: i.category, color: i.color, byOrder: i.by_order
+          id: i.id, productId: i.product_id, productName: i.product_name, description: i.description, quantity: i.quantity, unitPrice: i.unit_price, category: i.category, color: i.color, byOrder: i.by_order, variantId: i.variant_id, variantName: i.variant_name
         })) || []
       }));
 
@@ -369,7 +372,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         total: Number(q.total) || 0,
         date: q.date || todayStr,
         items: q.quote_items?.map((i: any) => ({
-          id: i.id, quoteId: i.quote_id, productId: i.product_id, productName: i.product_name, productSku: i.product_sku || '', quantity: Number(i.quantity) || 0, unitPrice: Number(i.unit_price) || 0, total: Number(i.total) || 0, category: i.category || '', image: i.image || '', description: i.description || '', serviceType: i.service_type, serviceSpecs: i.service_specs
+            id: i.id, quoteId: i.quote_id, productId: i.product_id, variantId: i.variant_id, variantName: i.variant_name, productName: i.product_name, productSku: i.product_sku || '', quantity: Number(i.quantity) || 0, unitPrice: Number(i.unit_price) || 0, total: Number(i.total) || 0, category: i.category || '', image: i.image || '', description: i.description || '', serviceType: i.service_type, serviceSpecs: i.service_specs
         })) || []
       }));
 
@@ -872,7 +875,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setData((prev: any) => ({ ...prev, products: [...prev.products, p] }));
 
     // Supabase Insert
-    const { error } = await supabase.from('products').insert({
+    const payload: any = {
       id: p.id,
       name: p.name,
       price: p.price,
@@ -883,15 +886,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       category: p.category,
       image: p.image,
       description: p.description,
-      entry_date: p.entryDate
-    });
+      entry_date: p.entryDate,
+      has_variations: p.hasVariations || false,
+      variants: p.variants || []
+    };
+
+    const { error } = await supabase.from('products').insert(payload);
 
     if (error) {
-      console.error('Error adding product:', error);
-      addNotification('Erro ao salvar produto no banco de dados', 'error');
-    } else {
-      addNotification('Produto salvo com sucesso', 'success');
+      // Fallback if DB columns has_variations/variants don't exist yet
+      if (error.code === 'PGRST204' || error.message?.includes('has_variations') || error.message?.includes('variants')) {
+        delete payload.has_variations;
+        delete payload.variants;
+        await supabase.from('products').insert(payload);
+      } else {
+        console.error('Error adding product:', error);
+        addNotification('Erro ao salvar produto no banco de dados', 'error');
+        return;
+      }
     }
+    addNotification('Produto salvo com sucesso', 'success');
   };
 
   const updateProduct = async (p: Product) => {
@@ -914,7 +928,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setData((prev: any) => ({ ...prev, products: prev.products.map((i: Product) => i.id === p.id ? p : i) }));
 
-    const { error } = await supabase.from('products').update({
+    const payload: any = {
       name: p.name,
       price: p.price,
       cost: p.cost,
@@ -924,10 +938,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       category: p.category,
       image: p.image,
       description: p.description,
-      entry_date: p.entryDate
-    }).eq('id', p.id);
+      entry_date: p.entryDate,
+      has_variations: p.hasVariations || false,
+      variants: p.variants || []
+    };
 
-    if (error) addNotification('Erro ao atualizar produto', 'error');
+    const { error } = await supabase.from('products').update(payload).eq('id', p.id);
+
+    if (error) {
+      if (error.code === 'PGRST204' || error.message?.includes('has_variations') || error.message?.includes('variants')) {
+        delete payload.has_variations;
+        delete payload.variants;
+        await supabase.from('products').update(payload).eq('id', p.id);
+      } else {
+        addNotification('Erro ao atualizar produto', 'error');
+      }
+    }
   };
 
   const deleteProduct = async (id: string) => {
@@ -1052,12 +1078,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             } else {
               // Reduce Stock
               const newQty = product.quantity - processingItem.quantity;
-              await updateProduct({ ...product, quantity: newQty });
+              let updatedVariants = product.variants;
+              if (processingItem.variantId && product.variants && product.variants.length > 0) {
+                updatedVariants = product.variants.map((v: ProductVariant) => {
+                  if (v.id === processingItem.variantId) {
+                    return { ...v, quantity: Math.max(0, v.quantity - processingItem.quantity) };
+                  }
+                  return v;
+                });
+              }
+
+              await updateProduct({ ...product, quantity: newQty, variants: updatedVariants });
 
               addStockMovement({
                 id: getUUID(),
                 productId: processingItem.productId,
-                productName: processingItem.productName,
+                productName: `${processingItem.productName}${processingItem.variantName ? ` (${processingItem.variantName})` : ''}`,
                 quantity: -processingItem.quantity,
                 type: 'SALE',
                 date: s.date,
@@ -1090,6 +1126,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           service_type: i.serviceType,
           service_specs: typeof i.serviceSpecs === 'object' ? JSON.stringify(i.serviceSpecs) : i.serviceSpecs,
           color: i.color,
+                    variant_id: i.variantId || null,
+                    variant_name: i.variantName || null,
           by_order: i.byOrder
         };
       });
@@ -1872,6 +1910,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: i.id,
         quote_id: q.id,
         product_id: i.productId,
+        variant_id: i.variantId,
+        variant_name: i.variantName,
         product_name: i.productName,
         product_sku: i.productSku,
         quantity: i.quantity,
@@ -1926,6 +1966,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: i.id,
         quote_id: q.id,
         product_id: i.productId,
+        variant_id: i.variantId,
+        variant_name: i.variantName,
         product_name: i.productName,
         product_sku: i.productSku,
         quantity: i.quantity,

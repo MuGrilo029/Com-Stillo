@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useAppStore } from '../store';
-import { Card, Badge, Button, Input } from '../components/UI';
+import { Card, Badge, Button, Input, formatPhone } from '../components/UI';
 import { Wrench, CheckCircle, Clock, PlayCircle, ArrowRight, ArrowLeft, FileText, Image as ImageIcon, User, MapPin, Phone, Calendar, ZoomIn, X, Search, Printer, Plus } from 'lucide-react';
 import { ProductionOrder, FurnitureSpecs, Product } from '../types';
 import { Modal } from '../components/UI';
@@ -179,7 +179,7 @@ const OrderCard: React.FC<{ order: ProductionOrder; onClick: (order: ProductionO
 };
 
 export const Production: React.FC = () => {
-  const { productionOrders, updateProductionOrderStatus } = useAppStore();
+  const { productionOrders, updateProductionOrderStatus, customers, addCustomer } = useAppStore();
   const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -193,6 +193,9 @@ export const Production: React.FC = () => {
   });
   const [manualSpecs, setManualSpecs] = useState<{ type: 'INTERNAL' | 'OUTSOURCED', data: string } | null>(null);
   const [showSpecsModal, setShowSpecsModal] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [showCustomerResults, setShowCustomerResults] = useState(false);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
 
   // Date Filter State
   type TimeRange = 'TODAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'CUSTOM';
@@ -269,8 +272,8 @@ export const Production: React.FC = () => {
   };
 
   const handleCreateManualOrder = async () => {
-    if (!manualForm.customerName || !manualForm.itemName || !manualSpecs) {
-      alert('Preencha os dados básicos e as especificações da produção.');
+    if (!manualForm.customerName || !manualForm.itemName) {
+      alert('Preencha o cliente e o item/modelo da produção.');
       return;
     }
 
@@ -282,7 +285,7 @@ export const Production: React.FC = () => {
       customerPhone: manualForm.customerPhone,
       itemName: manualForm.itemName,
       quantity: manualForm.quantity,
-      specs: manualSpecs.data,
+      specs: manualSpecs?.data || `Produção manual: ${manualForm.itemName}`,
       status: 'PENDING',
       date: formatISO(new Date())
     };
@@ -294,6 +297,40 @@ export const Production: React.FC = () => {
     setShowManualModal(false);
     setManualForm({ customerName: '', customerPhone: '', itemName: '', quantity: 1 });
     setManualSpecs(null);
+  };
+
+  const matchingCustomers = customerSearch.trim()
+    ? customers.filter(c => `${c.name} ${c.phone || ''} ${c.cpfCnpj || ''}`.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 6)
+    : [];
+
+  const selectManualCustomer = (customer: typeof customers[number]) => {
+    setManualForm(prev => ({ ...prev, customerName: customer.name, customerPhone: customer.phone || '' }));
+    setCustomerSearch(customer.name);
+    setShowCustomerResults(false);
+    setIsNewCustomer(false);
+  };
+
+  const startNewCustomer = () => {
+    setIsNewCustomer(true);
+    setCustomerSearch('');
+    setShowCustomerResults(false);
+    setManualForm(prev => ({ ...prev, customerName: '', customerPhone: '' }));
+  };
+
+  const saveNewCustomer = () => {
+    if (!manualForm.customerName.trim()) {
+      alert('Informe o nome do cliente.');
+      return;
+    }
+    const customer = {
+      id: getUUID(),
+      name: manualForm.customerName.trim(),
+      phone: manualForm.customerPhone,
+    };
+    addCustomer(customer);
+    setCustomerSearch(customer.name);
+    setIsNewCustomer(false);
+    setShowCustomerResults(false);
   };
 
   // --- FULL PAGE DETAIL VIEW ---
@@ -822,9 +859,32 @@ export const Production: React.FC = () => {
       {/* MODAL: NOVA PRODUÇÃO MANUAL */}
       <Modal isOpen={showManualModal} onClose={() => setShowManualModal(false)} title="Nova Produção Independente">
         <div className="space-y-4">
+          <div className="relative">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  label="Buscar cliente existente"
+                  value={customerSearch}
+                  onChange={e => { setCustomerSearch(e.target.value); setShowCustomerResults(true); setIsNewCustomer(false); }}
+                  placeholder="Nome, telefone ou CPF/CNPJ"
+                />
+              </div>
+              <Button type="button" variant="outline" className="mt-6 whitespace-nowrap" onClick={startNewCustomer}>Novo cliente</Button>
+            </div>
+            {showCustomerResults && matchingCustomers.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-lg border border-wine-200 bg-white dark:bg-slate-800 shadow-xl overflow-hidden">
+                {matchingCustomers.map(customer => (
+                  <button type="button" key={customer.id} onClick={() => selectManualCustomer(customer)} className="w-full text-left px-3 py-2 hover:bg-wine-50 dark:hover:bg-slate-700 border-b last:border-0 border-wine-100 dark:border-slate-700">
+                    <span className="block font-bold text-sm text-wine-900 dark:text-white">{customer.name}</span>
+                    <span className="text-xs text-wine-500">{customer.phone || customer.cpfCnpj || 'Sem contato'}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input 
-              label="Nome do Cliente *" 
+              label={isNewCustomer ? "Nome do Novo Cliente *" : "Cliente Selecionado *"}
               value={manualForm.customerName} 
               onChange={e => setManualForm({ ...manualForm, customerName: e.target.value })} 
               placeholder="Ex: João Silva"
@@ -832,10 +892,11 @@ export const Production: React.FC = () => {
             <Input 
               label="Telefone" 
               value={manualForm.customerPhone} 
-              onChange={e => setManualForm({ ...manualForm, customerPhone: e.target.value })} 
+              onChange={e => setManualForm({ ...manualForm, customerPhone: formatPhone(e.target.value) })} 
               placeholder="(00) 00000-0000"
             />
           </div>
+          {isNewCustomer && <Button type="button" variant="outline" size="sm" onClick={saveNewCustomer}>Salvar cliente e selecionar</Button>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input 
               label="Item / Modelo *" 

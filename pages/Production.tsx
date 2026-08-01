@@ -179,7 +179,7 @@ const OrderCard: React.FC<{ order: ProductionOrder; onClick: (order: ProductionO
 };
 
 export const Production: React.FC = () => {
-  const { productionOrders, updateProductionOrderStatus, customers, addCustomer } = useAppStore();
+  const { productionOrders, updateProductionOrderStatus, customers, addCustomer, addProductionOrder, addNotification } = useAppStore();
   const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
   const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -276,8 +276,6 @@ export const Production: React.FC = () => {
       alert('Preencha o cliente e o item/modelo da produção.');
       return;
     }
-
-    const { addProductionOrder, addNotification } = useAppStore.getState();
 
     const newOrder: ProductionOrder = {
       id: getUUID(),

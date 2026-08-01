@@ -7,7 +7,7 @@ import {
   AlertCircle, ArrowLeft, ArrowRight, Trash, Edit2, ChevronLeft, ChevronRight, Filter
 } from 'lucide-react';
 import { Product, Customer, FurnitureSpecs, CardFee } from '../types';
-import { formatISO, formatDisplayDate, getUUID, formatCurrency } from '../lib/utils';
+import { formatBrazilDateTime, formatISO, formatDisplayDate, getUUID, formatCurrency } from '../lib/utils';
 
 interface CartItem extends Product {
   cartQty: number;
@@ -438,7 +438,7 @@ export const Sales: React.FC = () => {
       customerPhone,
       customerAddress: deliveryType === 'DELIVERY' ? customerAddress : undefined,
       deliveryType,
-      date: editingSaleId ? (sales.find(s => s.id === editingSaleId)?.date || formatISO(new Date())) : formatISO(new Date()),
+      date: editingSaleId ? (sales.find(s => s.id === editingSaleId)?.date || formatBrazilDateTime()) : formatBrazilDateTime(),
       items: finalCart.map(item => {
         // CRITICAL FIX: Ensure productId is preserved from the CartItem
         // The CartItem might have a 'productId' property (from our load logic) OR inherit 'id' from the Product type if it was just added.

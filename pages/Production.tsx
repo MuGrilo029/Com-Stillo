@@ -6,7 +6,7 @@ import { Wrench, CheckCircle, Clock, PlayCircle, ArrowRight, ArrowLeft, FileText
 import { ProductionOrder, FurnitureSpecs, Product } from '../types';
 import { Modal } from '../components/UI';
 import { ServiceConfigForm } from '../components/ServiceConfigForm';
-import { getUUID, formatISO } from '../lib/utils';
+import { getUUID, formatBrazilDateTime, formatISO } from '../lib/utils';
 
 // Helper to safely parse specs
 const parseSpecs = (specsStr: string): FurnitureSpecs | null => {
@@ -285,7 +285,7 @@ export const Production: React.FC = () => {
       quantity: manualForm.quantity,
       specs: manualSpecs?.data || `Produção manual: ${manualForm.itemName}`,
       status: 'PENDING',
-      date: formatISO(new Date())
+      date: formatBrazilDateTime()
     };
 
     await addProductionOrder(newOrder);

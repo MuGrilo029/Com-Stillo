@@ -13,6 +13,7 @@ import { Suppliers } from './pages/Suppliers';
 import { Reports } from './pages/Reports';
 import { SalesHistory } from './pages/SalesHistory';
 import { Orders } from './pages/Orders';
+import { StockEntries } from './pages/StockEntries';
 import { Modules } from './pages/Modules';
 
 import { Quotes } from './pages/Quotes';
@@ -198,6 +199,7 @@ const AppContent: React.FC = () => {
       case 'REPORTS': return <Reports />;
       case 'QUOTES': return <Quotes />;
       case 'ORDERS': return <Orders />;
+      case 'STOCK_LOGS': return <StockEntries />;
       default: return <Dashboard />;
     }
   };

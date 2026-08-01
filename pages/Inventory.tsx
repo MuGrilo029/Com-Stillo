@@ -9,7 +9,7 @@ import { supabase } from '../lib/supabase';
 import { formatDisplayDate, getUUID } from '../lib/utils';
 
 export const Inventory: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct, categories, registerStockEntry, stockMovements } = useAppStore();
+  const { products, addProduct, updateProduct, deleteProduct, categories, registerStockEntry, stockMovements, navigateTo } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showStockEntry, setShowStockEntry] = useState(false);
@@ -171,7 +171,10 @@ export const Inventory: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-black text-wine-900 dark:text-white tracking-tighter uppercase">Controle de Estoque</h2>
-        <Button onClick={() => handleOpenModal()} className="w-full sm:w-auto"><Plus size={18} /> Novo Produto</Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={() => navigateTo('STOCK_LOGS')} className="w-full sm:w-auto">Histórico de Entradas</Button>
+          <Button onClick={() => handleOpenModal()} className="w-full sm:w-auto"><Plus size={18} /> Novo Produto</Button>
+        </div>
       </div>
 
       {/* --- FILTROS DE BUSCA E CATEGORIA (Estilo Dashboard) --- */}
@@ -308,7 +311,7 @@ export const Inventory: React.FC = () => {
                 size="sm"
                 onClick={() => {
                   setStockEntryData({ quantity: 1, cost: formData.cost || 0, date: new Date().toISOString().split('T')[0], observations: '' });
-                  setStockEntryVariantId(product.hasVariations && product.variants?.length ? product.variants[0].id : '');
+                  setStockEntryVariantId(formData.hasVariations && formData.variants?.length ? formData.variants[0].id : '');
                   setShowStockEntry(true);
                 }}
                 className="w-full mt-2 border-wine-200 text-wine-600 hover:bg-wine-50"
@@ -779,8 +782,13 @@ export const Inventory: React.FC = () => {
 
       <Card>
         <div className="p-4 border-b border-wine-100 dark:border-slate-700">
-          <h3 className="font-black text-wine-900 dark:text-white uppercase tracking-tight">Histórico de Entradas</h3>
-          <p className="text-xs text-wine-500 dark:text-slate-400 mt-1">Registro de quando, quanto e qual variação entrou no estoque.</p>
+          <div className="flex justify-between items-center gap-3">
+            <div>
+              <h3 className="font-black text-wine-900 dark:text-white uppercase tracking-tight">Últimas Entradas</h3>
+              <p className="text-xs text-wine-500 dark:text-slate-400 mt-1">Registro de quando, quanto e qual variação entrou no estoque.</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigateTo('STOCK_LOGS')}>Ver página completa</Button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <Table headers={['Data', 'Produto', 'Variação', 'Quantidade', 'Custo Unitário', 'Observações']}>

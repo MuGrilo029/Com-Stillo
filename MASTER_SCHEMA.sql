@@ -297,21 +297,36 @@ ALTER TABLE category_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transaction_payments ENABLE ROW LEVEL SECURITY;
 
 -- 1. PROFILES: Cada usuário vê o seu próprio, admins vêm todos.
+-- A função SECURITY DEFINER evita recursão ao consultar profiles dentro das políticas.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid()
+      AND 'ADMIN' = ANY(roles)
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+
 DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
 CREATE POLICY "Users can view their own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id);
+  FOR SELECT TO authenticated USING (auth.uid() = id OR public.is_admin());
 
 DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> '{ADMIN}')
-  );
+  FOR SELECT TO authenticated USING (public.is_admin());
 
 DROP POLICY IF EXISTS "Admins can update profiles" ON profiles;
 CREATE POLICY "Admins can update profiles" ON profiles
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> '{ADMIN}')
-  );
+  FOR UPDATE TO authenticated USING (public.is_admin());
 
 -- 2. Configurações da Empresa: Todos logados lêem, apenas Admins editam.
 DROP POLICY IF EXISTS "Authenticated can view settings" ON company_settings;
@@ -321,7 +336,7 @@ CREATE POLICY "Authenticated can view settings" ON company_settings
 DROP POLICY IF EXISTS "Admins can update settings" ON company_settings;
 CREATE POLICY "Admins can update settings" ON company_settings
   FOR ALL TO authenticated USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> '{ADMIN}')
+    public.is_admin()
   );
 
 -- 3. Tabelas de Operação (Vendas, Produtos, Clientes, etc): 
@@ -351,7 +366,7 @@ BEGIN
     EXECUTE format('CREATE POLICY "Authenticated update" ON %I FOR UPDATE TO authenticated USING (true)', t);
     
     -- Delete access ONLY FOR ADMINS
-    EXECUTE format('CREATE POLICY "Admins delete" ON %I FOR DELETE TO authenticated USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND roles @> ''{ADMIN}''))', t);
+    EXECUTE format('CREATE POLICY "Admins delete" ON %I FOR DELETE TO authenticated USING (public.is_admin())', t);
   END LOOP;
 END $$;
 

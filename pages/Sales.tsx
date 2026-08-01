@@ -769,8 +769,8 @@ export const Sales: React.FC = () => {
               )}
             </div>
             <Card className="p-4 sticky top-0 z-10 bg-white/95 backdrop-blur">
-              <div className="flex flex-col gap-4 w-full">
-                <div className="relative w-full">
+              <div className="flex flex-col gap-4 w-full max-w-6xl mx-auto">
+                <div className="relative w-full max-w-5xl mx-auto">
                   <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
                   <input
                     className="w-full pl-10 p-2 border rounded bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none focus:ring-2 focus:ring-wine-500"
@@ -782,7 +782,7 @@ export const Sales: React.FC = () => {
 
 
 
-                <div className="flex items-center gap-2 px-2">
+                <div className="flex items-center justify-center gap-2 px-2">
                   <div
                     onClick={() => setOnlyInStock(!onlyInStock)}
                     className={`
@@ -802,7 +802,7 @@ export const Sales: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                <div className="flex justify-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
                   {categories.map(cat => (
                     <button
                       key={cat}

@@ -179,8 +179,8 @@ export const Inventory: React.FC = () => {
 
       {/* --- FILTROS DE BUSCA E CATEGORIA (Estilo Dashboard) --- */}
       <Card className="p-4 space-y-4 shadow-xl border-wine-100 dark:border-slate-700">
-        <div className="flex flex-col md:flex-row gap-4 items-center">
-          <div className="relative flex-1">
+        <div className="flex flex-col md:flex-row gap-4 items-center max-w-6xl mx-auto">
+          <div className="relative flex-1 w-full max-w-5xl">
             <Plus className="absolute left-3 top-2.5 text-gray-400 rotate-45" size={20} />
             <input
               className="w-full pl-10 p-2 border rounded-xl bg-white dark:bg-slate-700 dark:border-slate-600 dark:text-white outline-none focus:ring-2 focus:ring-wine-500"
@@ -190,7 +190,7 @@ export const Inventory: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2 px-2">
+          <div className="flex items-center justify-center gap-2 px-2">
             <div
               onClick={() => setOnlyInStock(!onlyInStock)}
               className={`
@@ -211,7 +211,7 @@ export const Inventory: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+        <div className="flex justify-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
           {['Todos', ...new Set(productCategories.map(c => c.name))].map(cat => (
             <button
               key={cat}

@@ -14,6 +14,23 @@ CREATE TABLE IF NOT EXISTS profiles (
   roles TEXT[] DEFAULT '{ADMIN}'
 );
 
+-- Garante um perfil para usuários criados antes da instalação deste schema.
+-- Novos perfis recebem ADMIN para o primeiro acesso e podem ser restringidos
+-- posteriormente em Configurações > Usuários.
+INSERT INTO profiles (id, email, name, roles)
+SELECT
+  u.id,
+  u.email,
+  COALESCE(u.raw_user_meta_data->>'name', u.email),
+  ARRAY['ADMIN']::TEXT[]
+FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.id = u.id)
+ON CONFLICT (id) DO NOTHING;
+
+UPDATE profiles
+SET roles = ARRAY['ADMIN']::TEXT[]
+WHERE roles IS NULL OR cardinality(roles) = 0;
+
 CREATE TABLE IF NOT EXISTS category_groups (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,

@@ -131,8 +131,10 @@ const AppContent: React.FC = () => {
   }
 
   // --- PERMISSION LOGIC ---
-  const currentUserProfile = users.find(u => u.email === user.email);
-  const userRoles = currentUserProfile?.roles || [];
+  // Prefer the immutable Auth user id. Older profiles may have a missing or
+  // different email, which previously caused valid users to appear as "Sem Função".
+  const currentUserProfile = users.find(u => u.id === user.id) || users.find(u => u.email?.toLowerCase() === user.email?.toLowerCase());
+  const userRoles = Array.isArray(currentUserProfile?.roles) ? currentUserProfile.roles : [];
 
   // If no profile found (or no roles), default to NO ACCESS (except maybe Dashboard if desired, currently strict)
   // For safety during dev, if user is the very first one or specific email, maybe allow?

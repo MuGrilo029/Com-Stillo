@@ -189,6 +189,10 @@ CREATE TABLE IF NOT EXISTS stock_movements (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS variant_id UUID;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS variant_name TEXT;
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS unit_cost NUMERIC;
+
 -- 11. ORDENS DE PRODUÇÃO
 CREATE TABLE IF NOT EXISTS production_orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

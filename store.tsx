@@ -83,7 +83,7 @@ interface AppState {
   deleteQuote: (id: string) => void;
 
   addStockMovement: (m: StockMovement) => void;
-  registerStockEntry: (productId: string, quantity: number, cost: number, date: string, observations?: string) => Promise<void>;
+  registerStockEntry: (productId: string, quantity: number, cost: number, date: string, observations?: string, variantId?: string) => Promise<void>;
 
   // Generic import function
   importData: (module: string, data: any[]) => void;
@@ -381,7 +381,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
 
       const formattedStockMovements = (stockMovementsData || []).map((m: any) => ({
-        id: m.id, productId: m.product_id, productName: m.product_name, quantity: m.quantity, type: m.type, date: m.date, observations: m.observations, userId: m.user_id
+        id: m.id, productId: m.product_id, productName: m.product_name, quantity: m.quantity, type: m.type, date: m.date, observations: m.observations, userId: m.user_id, variantId: m.variant_id, variantName: m.variant_name, unitCost: Number(m.unit_cost) || undefined
       }));
 
       const formattedCardFees = (cardFeesData || []).map((f: any) => ({
@@ -962,23 +962,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (error) addNotification('Erro ao deletar produto', 'error');
   };
 
-  const registerStockEntry = async (productId: string, quantity: number, cost: number, date: string, observations?: string) => {
+  const registerStockEntry = async (productId: string, quantity: number, cost: number, date: string, observations?: string, variantId?: string) => {
     const product = data.products.find(p => p.id === productId);
     if (!product) return;
 
     const newQuantity = product.quantity + quantity;
+    const selectedVariant = product.variants?.find(v => v.id === variantId);
+    const updatedVariants = variantId && product.variants
+      ? product.variants.map(v => v.id === variantId ? { ...v, quantity: v.quantity + quantity, cost } : v)
+      : product.variants;
 
     // 1. Update local state
     setData((prev: any) => ({
       ...prev,
-      products: prev.products.map((p: Product) => p.id === productId ? { ...p, quantity: newQuantity, cost, entryDate: date } : p)
+      products: prev.products.map((p: Product) => p.id === productId ? { ...p, quantity: newQuantity, cost, entryDate: date, variants: updatedVariants } : p)
     }));
 
     // 2. Update DB
     const { error: productError } = await supabase.from('products').update({
       quantity: newQuantity,
       cost,
-      entry_date: date
+      entry_date: date,
+      variants: updatedVariants || []
     }).eq('id', productId);
 
     if (productError) {
@@ -995,10 +1000,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       quantity,
       type: 'PURCHASE',
       date: date,
-      observations: observations || 'Entrada manual de estoque'
+      variantId,
+      variantName: selectedVariant?.name,
+      unitCost: cost,
+      observations: observations || `Entrada manual de estoque${selectedVariant ? ` - ${selectedVariant.name}` : ''}`
     });
 
-    addNotification(`Entrada de ${quantity} unidades registrada com sucesso`, 'success');
+    addNotification(`Entrada de ${quantity} unidades${selectedVariant ? ` da variação ${selectedVariant.name}` : ''} registrada com sucesso`, 'success');
   };
 
   const addSale = async (s: Sale) => {
@@ -1469,7 +1477,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: m.type,
       date: m.date,
       observations: m.observations,
-      user_id: m.userId
+      user_id: m.userId,
+      variant_id: m.variantId || null,
+      variant_name: m.variantName || null,
+      unit_cost: m.unitCost ?? null
     });
     if (error) console.error('Erro ao salvar log de estoque:', error);
   };

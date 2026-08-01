@@ -9,12 +9,13 @@ import { supabase } from '../lib/supabase';
 import { formatDisplayDate, getUUID } from '../lib/utils';
 
 export const Inventory: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct, categories, registerStockEntry } = useAppStore();
+  const { products, addProduct, updateProduct, deleteProduct, categories, registerStockEntry, stockMovements } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showStockEntry, setShowStockEntry] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [stockEntryData, setStockEntryData] = useState({ quantity: 0, cost: 0, date: new Date().toISOString().split('T')[0], observations: '' });
+  const [stockEntryVariantId, setStockEntryVariantId] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
   // --- VARIATIONS STATE ---
@@ -307,6 +308,7 @@ export const Inventory: React.FC = () => {
                 size="sm"
                 onClick={() => {
                   setStockEntryData({ quantity: 1, cost: formData.cost || 0, date: new Date().toISOString().split('T')[0], observations: '' });
+                  setStockEntryVariantId(product.hasVariations && product.variants?.length ? product.variants[0].id : '');
                   setShowStockEntry(true);
                 }}
                 className="w-full mt-2 border-wine-200 text-wine-600 hover:bg-wine-50"
@@ -641,6 +643,21 @@ export const Inventory: React.FC = () => {
             />
           </div>
 
+          {formData.hasVariations && (formData.variants || []).length > 0 && (
+            <Select
+              label="Variação da Entrada *"
+              value={stockEntryVariantId}
+              onChange={e => setStockEntryVariantId(e.target.value)}
+            >
+              <option value="">Selecione a variação...</option>
+              {formData.variants!.map(v => (
+                <option key={v.id} value={v.id}>
+                  {v.name} — estoque atual: {v.quantity}
+                </option>
+              ))}
+            </Select>
+          )}
+
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-wine-700 dark:text-wine-200 uppercase tracking-wide">
               Observações
@@ -664,18 +681,25 @@ export const Inventory: React.FC = () => {
                   alert('A quantidade deve ser maior que zero.');
                   return;
                 }
+                if (formData.hasVariations && !stockEntryVariantId) {
+                  alert('Selecione a variação que receberá a entrada.');
+                  return;
+                }
                 await registerStockEntry(
                   formData.id!,
                   stockEntryData.quantity,
                   stockEntryData.cost,
                   stockEntryData.date,
-                  stockEntryData.observations
+                  stockEntryData.observations,
+                  stockEntryVariantId || undefined
                 );
                 // Refresh local formData to reflect new state in the edit modal
                 setFormData(prev => ({
                   ...prev,
                   quantity: (prev.quantity || 0) + stockEntryData.quantity,
-                  cost: stockEntryData.cost
+                  cost: stockEntryData.cost,
+                  entryDate: stockEntryData.date,
+                  variants: prev.variants?.map(v => v.id === stockEntryVariantId ? { ...v, quantity: v.quantity + stockEntryData.quantity, cost: stockEntryData.cost } : v)
                 }));
                 setShowStockEntry(false);
               }}
@@ -751,6 +775,30 @@ export const Inventory: React.FC = () => {
             </tr>
           )}
         </Table>
+      </Card>
+
+      <Card>
+        <div className="p-4 border-b border-wine-100 dark:border-slate-700">
+          <h3 className="font-black text-wine-900 dark:text-white uppercase tracking-tight">Histórico de Entradas</h3>
+          <p className="text-xs text-wine-500 dark:text-slate-400 mt-1">Registro de quando, quanto e qual variação entrou no estoque.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <Table headers={['Data', 'Produto', 'Variação', 'Quantidade', 'Custo Unitário', 'Observações']}>
+            {(stockMovements || []).filter(m => m.type === 'PURCHASE').slice(0, 20).map(m => (
+              <tr key={m.id} className="border-b border-wine-50 dark:border-slate-700/50">
+                <td className="py-3 px-4 text-xs font-mono text-wine-500">{formatDisplayDate(m.date)}</td>
+                <td className="py-3 px-4 font-bold text-wine-900 dark:text-white">{m.productName}</td>
+                <td className="py-3 px-4 text-sm text-wine-600 dark:text-slate-300">{m.variantName || 'Produto principal'}</td>
+                <td className="py-3 px-4 font-black text-emerald-600">+{m.quantity}</td>
+                <td className="py-3 px-4">{m.unitCost !== undefined ? `R$ ${m.unitCost.toFixed(2)}` : '-'}</td>
+                <td className="py-3 px-4 text-xs text-wine-500 dark:text-slate-400">{m.observations || '-'}</td>
+              </tr>
+            ))}
+            {(stockMovements || []).filter(m => m.type === 'PURCHASE').length === 0 && (
+              <tr><td colSpan={6} className="py-8 text-center text-sm text-wine-400">Nenhuma entrada registrada.</td></tr>
+            )}
+          </Table>
+        </div>
       </Card>
     </div >
   );

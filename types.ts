@@ -289,6 +289,9 @@ export interface StockMovement {
   quantity: number; // Positive for entry, negative for exit
   type: 'SALE' | 'ADJUSTMENT' | 'PURCHASE' | 'RETURN';
   date: string;
+  variantId?: string;
+  variantName?: string;
+  unitCost?: number;
   observations?: string;
   userId?: string;
 }

@@ -6,7 +6,7 @@ import { Card, Button, Input, Table, Badge, Modal, Select } from '../components/
 import { Plus, Trash2, AlertTriangle, DollarSign, Package, TrendingUp, TrendingDown, Upload, Image as ImageIcon, Loader2, Layers } from 'lucide-react';
 import { Product, ProductVariant } from '../types';
 import { supabase } from '../lib/supabase';
-import { formatDisplayDate, getUUID } from '../lib/utils';
+import { formatDisplayDate, formatISO, getUUID } from '../lib/utils';
 
 export const Inventory: React.FC = () => {
   const { products, addProduct, updateProduct, deleteProduct, categories, registerStockEntry, navigateTo } = useAppStore();
@@ -14,7 +14,7 @@ export const Inventory: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showStockEntry, setShowStockEntry] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({});
-  const [stockEntryData, setStockEntryData] = useState({ quantity: 0, cost: 0, date: new Date().toISOString().split('T')[0], observations: '' });
+  const [stockEntryData, setStockEntryData] = useState({ quantity: 0, cost: 0, date: formatISO(new Date()), observations: '' });
   const [stockEntryVariantId, setStockEntryVariantId] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
@@ -310,7 +310,7 @@ export const Inventory: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setStockEntryData({ quantity: 1, cost: formData.cost || 0, date: new Date().toISOString().split('T')[0], observations: '' });
+                  setStockEntryData({ quantity: 1, cost: formData.cost || 0, date: formatISO(new Date()), observations: '' });
                   setStockEntryVariantId(formData.hasVariations && formData.variants?.length ? formData.variants[0].id : '');
                   setShowStockEntry(true);
                 }}

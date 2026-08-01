@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import { Category, User, CategoryType, UserRole, CategoryGroup, CardFee } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency, getUUID } from '../lib/utils';
+import { formatCurrency, formatISO, getUUID } from '../lib/utils';
 
 export const Settings: React.FC = () => {
   const {
@@ -94,7 +94,7 @@ export const Settings: React.FC = () => {
   };
 
   const parseDate = (value: any): string => {
-    if (!value) return new Date().toISOString().split('T')[0];
+    if (!value) return formatISO(new Date());
     if (typeof value === 'number') {
       const date = new Date((value - (25567 + 2)) * 86400 * 1000);
       return date.toISOString().split('T')[0];
@@ -103,7 +103,7 @@ export const Settings: React.FC = () => {
       const parts = value.split('/');
       if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
-    return new Date(value).toISOString().split('T')[0] || new Date().toISOString().split('T')[0];
+    return formatISO(new Date(value)) || formatISO(new Date());
   };
 
   const processImportData = (data: any[], type: string) => {
@@ -130,7 +130,7 @@ export const Settings: React.FC = () => {
         newItem.quantity = parseInt(findValue(['qtd', 'quantidade', 'estoque']) || '0');
         newItem.minStock = parseInt(findValue(['min', 'minimo']) || '5');
         newItem.category = findValue(['categoria', 'grupo', 'tipo']) || 'Geral';
-        newItem.entryDate = parseDate(findValue(['entrada', 'data'])) || new Date().toISOString().split('T')[0];
+        newItem.entryDate = parseDate(findValue(['entrada', 'data'])) || formatISO(new Date());
       } else if (type === 'customers' || type === 'suppliers') {
         newItem.name = findValue(['nome', 'cliente', 'fornecedor', 'razao', 'empresa']) || 'Sem Nome';
         newItem.cpfCnpj = findValue(['cpf', 'cnpj', 'doc', 'federal']) || '';
@@ -240,7 +240,7 @@ export const Settings: React.FC = () => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Dados");
-    const date = new Date().toISOString().split('T')[0];
+    const date = formatISO(new Date());
     const fileName = `${moduleId.toUpperCase()}_${date}.${type}`;
     XLSX.writeFile(wb, fileName);
   };

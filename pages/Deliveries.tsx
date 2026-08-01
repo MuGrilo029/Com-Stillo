@@ -4,6 +4,7 @@ import { useAppStore } from '../store';
 import { Card, Button, Modal, Input, Badge } from '../components/UI';
 import { Truck, MapPin, Phone, Clock, Calendar, CheckCircle, Navigation, Edit2, MessageCircle, Printer, FileText, Trash2, Kanban, RotateCcw } from 'lucide-react';
 import { Delivery } from '../types';
+import { formatISO } from '../lib/utils';
 
 const getWhatsAppLink = (notes?: string) => {
   const phoneMatch = notes?.match(/\(\d{2}\)\s\d{4,5}-\d{4}/);
@@ -395,7 +396,7 @@ export const Deliveries: React.FC = () => {
 
   const openScheduleModal = (delivery: Delivery) => {
     setSelectedDelivery(delivery);
-    setScheduleDate(delivery.date || new Date().toISOString().split('T')[0]);
+    setScheduleDate(delivery.date || formatISO(new Date()));
     setScheduleTime(delivery.scheduledTime || '');
     setScheduleNotes(delivery.notes || '');
     setShowScheduleModal(true);
@@ -621,7 +622,7 @@ export const Deliveries: React.FC = () => {
             <div className="flex-1 grid grid-cols-7 grid-rows-5 md:grid-rows-6">
               {calendarDays.map((dayObj, idx) => {
                 const dayDeliveries = deliveries.filter(d => d.date === dayObj.dateStr);
-                const isToday = dayObj.dateStr === new Date().toISOString().split('T')[0];
+                const isToday = dayObj.dateStr === formatISO(new Date());
                 // Logic to categorize deliveries for the calendar cell
                 const lateCount = dayDeliveries.filter(d => d.status !== 'DELIVERED' && getDeliveryStatusColor(d) === 'red').length;
                 const urgentCount = dayDeliveries.filter(d => d.status !== 'DELIVERED' && getDeliveryStatusColor(d) === 'yellow').length;

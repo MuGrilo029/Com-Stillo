@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../store';
 import { Product, Customer, Quote, QuoteItem, FurnitureSpecs, Sale } from '../types';
-import { formatCurrency, formatDisplayDate, getUUID } from '../lib/utils';
+import { formatBrazilDateTime, formatCurrency, formatDisplayDate, getUUID } from '../lib/utils';
 import { Card, Button, Input, Select, formatCpfCnpj, formatPhone, Modal } from '../components/UI';
 import { Search, ShoppingCart, Trash, Plus, Minus, ArrowRight, ArrowLeft, Printer, FileText, Check, DollarSign, UserCheck, Calendar, Clock, History, Edit, CheckCircle, Trash2, Info, Upload, Image as ImageIcon, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -385,7 +385,7 @@ export const Quotes: React.FC = () => {
             remainingStatus: paymentType === 'PARTIAL' ? (isRemainingPaidNow ? 'PAID' : 'PENDING') : undefined,
             subtotal,
             total,
-            date: new Date().toISOString(),
+            date: formatBrazilDateTime(),
             items: cart.map(item => ({
                 id: getUUID(),
                 quoteId: editingId || '',

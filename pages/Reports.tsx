@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAppStore } from '../store';
 import { Product } from '../types';
 import { Card, Button, Input, Modal } from '../components/UI';
-import { parseISO, isInRange as utilsIsInRange } from '../lib/utils';
+import { formatISO, parseISO, isInRange as utilsIsInRange } from '../lib/utils';
 
 import {
     TrendingUp,
@@ -158,7 +158,7 @@ export const Reports: React.FC = () => {
     const [simulateAmount, setSimulateAmount] = useState<number | ''>('');
     const [simulateDesc, setSimulateDesc] = useState('Compra Simulada');
     const [simulateIntervals, setSimulateIntervals] = useState('30, 60, 90');
-    const [simulateDate, setSimulateDate] = useState(new Date().toISOString().split('T')[0]);
+    const [simulateDate, setSimulateDate] = useState(formatISO(new Date()));
 
     const handleAddSimulation = async () => {
         if (!simulateAmount || !simulateIntervals || !simulateDate) return;

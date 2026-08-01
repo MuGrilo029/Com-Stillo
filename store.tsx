@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Transaction, TransactionStatus, Product, ProductVariant, Supplier, Sale, Delivery, User, Customer, AppView, CompanySettings, Category, CategoryGroup, ProductionOrder, FurnitureSpecs, Notification, Quote, Order, StockMovement, CardFee } from './types';
 import { supabase } from './lib/supabase';
-import { parseISO, formatISO, isSameMonth, getUUID } from './lib/utils';
+import { parseISO, formatISO, formatBrazilDateTime, isSameMonth, getUUID } from './lib/utils';
 
 interface AppState {
   currentView: AppView;
@@ -920,7 +920,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           productName: p.name,
           quantity: diff,
           type: 'ADJUSTMENT',
-          date: new Date().toISOString(),
+          date: formatBrazilDateTime(),
           observations: 'Ajuste manual de estoque via painel'
         });
       }
@@ -1431,7 +1431,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 productName: item.product_name,
                 quantity: item.quantity, // Positive for return
                 type: 'RETURN',
-                date: new Date().toISOString(),
+                date: formatBrazilDateTime(),
                 variantId: item.variant_id,
                 variantName: item.variant_name,
                 observations: `Estorno de Venda EXCLUÍDA #${id.slice(0, 4)}${item.variant_name ? ` - ${item.variant_name}` : ''}`

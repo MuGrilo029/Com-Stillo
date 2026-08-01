@@ -82,7 +82,41 @@ export const isInRange = (
  * Utiliza o padrão sueco ('sv') que é idêntico ao ISO YYYY-MM-DD.
  */
 export const formatISO = (date: Date): string => {
-    return date.toLocaleDateString('sv');
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date);
+};
+
+/** Data e hora atuais no fuso oficial de Brasília (ISO com offset -03:00). */
+export const formatBrazilDateTime = (date: Date = new Date()): string => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hourCycle: 'h23'
+    }).formatToParts(date).reduce<Record<string, string>>((result, part) => {
+        result[part.type] = part.value;
+        return result;
+    }, {});
+
+    return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}-03:00`;
+};
+
+/** Formata timestamps sempre no horário de Brasília. */
+export const formatBrazilDateTimeDisplay = (dateString: string, withSeconds = false): string => {
+    if (!dateString) return '-';
+    return new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        dateStyle: 'short',
+        timeStyle: withSeconds ? 'medium' : 'short'
+    }).format(new Date(dateString));
 };
 
 /**
@@ -90,6 +124,14 @@ export const formatISO = (date: Date): string => {
  */
 export const formatDisplayDate = (dateStr: string): string => {
     if (!dateStr) return '-';
+    if (dateStr.includes('T') || dateStr.includes(':')) {
+        return new Intl.DateTimeFormat('pt-BR', {
+            timeZone: 'America/Sao_Paulo',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).format(new Date(dateStr));
+    }
     const [year, month, day] = dateStr.split('-');
     return `${day}/${month}/${year}`;
 };

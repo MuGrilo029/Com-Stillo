@@ -43,8 +43,10 @@ import {
   AlertCircle,
   Info,
   History,
-  RefreshCcw
+  RefreshCcw,
+  Smartphone
 } from 'lucide-react';
+import { MobileApp } from './components/mobile/MobileApp';
 
 const NotificationContainer = () => {
   const { notifications, removeNotification } = useAppStore();
@@ -105,6 +107,18 @@ const AppContent: React.FC = () => {
     sistema: true
   });
 
+  const [isMobileMode, setIsMobileMode] = useState(() => {
+    const saved = localStorage.getItem('COM_STILLO_VIEW_MODE');
+    if (saved === 'mobile') return true;
+    if (saved === 'desktop') return false;
+    return typeof window !== 'undefined' ? window.innerWidth < 768 : false;
+  });
+
+  const handleToggleMobileMode = (val: boolean) => {
+    setIsMobileMode(val);
+    localStorage.setItem('COM_STILLO_VIEW_MODE', val ? 'mobile' : 'desktop');
+  };
+
   if (loading || !isInitialized) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-wine-50 dark:bg-slate-900">
@@ -118,6 +132,14 @@ const AppContent: React.FC = () => {
 
   if (!user) {
     return <Login />;
+  }
+
+  if (isMobileMode) {
+    return (
+      <MobileApp
+        onSwitchToDesktop={() => handleToggleMobileMode(false)}
+      />
+    );
   }
 
   if (!hasSelectedModule) {
@@ -382,6 +404,15 @@ const AppContent: React.FC = () => {
           </button>
 
           <div className="flex items-center gap-2 sm:gap-4 ml-auto">
+            <button
+              onClick={() => handleToggleMobileMode(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-950 via-wine-900 to-rose-900 text-white hover:from-red-900 hover:to-rose-800 text-xs font-bold shadow-md shadow-red-950/40 transition-all active:scale-95 border border-rose-700/40"
+              title="Alternar para visualização Mobile-First"
+            >
+              <Smartphone size={15} />
+              <span className="hidden sm:inline">Modo Mobile</span>
+            </button>
+
             <button
               onClick={() => {
                 refreshData();

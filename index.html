@@ -2,16 +2,30 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>COM STILLO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#0b0f19" />
+    <title>COM STILLO | Gestão Pro ERP</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
-        darkMode: 'class', // Enable dark mode via class
+        darkMode: 'class',
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+            },
             colors: {
+              dark: {
+                950: '#070a11',
+                900: '#0b0f19',
+                850: '#111827',
+                800: '#182234',
+                750: '#1e2c42',
+                700: '#26354f',
+              },
               wine: {
                 50: '#fbf4f5',
                 100: '#f6e8ea',
@@ -22,9 +36,17 @@
                 600: '#954956',
                 700: '#7d3a46',
                 800: '#68323c',
-                900: '#56070c', // Primary color requested
+                900: '#56070c',
                 950: '#2f0f13',
+                accent: '#991b1b',
+                vibrant: '#881337',
+                dark: '#4c0519',
               }
+            },
+            boxShadow: {
+              'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+              'wine': '0 4px 20px -2px rgba(153, 27, 27, 0.4)',
+              'wine-lg': '0 10px 30px -4px rgba(136, 19, 55, 0.5)',
             }
           }
         }

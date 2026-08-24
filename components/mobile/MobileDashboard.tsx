@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { MobileTab, TimeFilterOption } from './types';
 import { Sale, Product, Transaction } from '../../types';
+import { isInRange } from '../../lib/utils';
 
 interface MobileDashboardProps {
   sales?: Sale[];
@@ -46,27 +47,14 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
     YEAR: 'Este Ano'
   };
 
-  const parseLocalDate = (value: string) => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const [year, month, day] = value.split('-').map(Number);
-      return new Date(year, month - 1, day);
-    }
-    return new Date(value);
-  };
-
   // Metric Computations based on real store data + fallbacks
   const metrics = useMemo(() => {
     const today = new Date();
-    const periodStart = new Date(today);
-    periodStart.setHours(0, 0, 0, 0);
-    if (timeFilter === 'WEEK') periodStart.setDate(today.getDate() - 7);
-    if (timeFilter === 'MONTH') periodStart.setDate(1);
-    if (timeFilter === 'YEAR') periodStart.setMonth(0, 1);
-
-    const periodTransactions = transactions.filter(transaction => {
-      const transactionDate = parseLocalDate(transaction.dueDate || transaction.date);
-      return !Number.isNaN(transactionDate.getTime()) && transactionDate >= periodStart;
-    });
+    const periodTransactions = transactions.filter(transaction => isInRange(
+      transaction.dueDate || transaction.date,
+      timeFilter,
+      { selectedMonth: today.getMonth(), selectedYear: today.getFullYear() }
+    ));
 
     const paidIncome = periodTransactions
       .filter(transaction => transaction.type === 'INCOME' && transaction.status === 'PAID')

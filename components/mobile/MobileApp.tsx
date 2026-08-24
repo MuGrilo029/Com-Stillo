@@ -199,7 +199,11 @@ export const MobileApp: React.FC<MobileAppProps> = ({
       </div>
 
       {/* Screen Switcher */}
-      {activeTab === 'DASHBOARD' && (
+      {!store.isInitialized ? (
+        <div className="min-h-[60vh] flex items-center justify-center text-sm text-slate-400">
+          Carregando dados do banco...
+        </div>
+      ) : activeTab === 'DASHBOARD' ? (
         <MobileDashboard
           sales={store?.sales}
           products={store?.products}
@@ -210,9 +214,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({
             setActiveTab('INVENTORY');
           }}
         />
-      )}
-
-      {activeTab === 'POS' && (
+      ) : activeTab === 'POS' ? (
         <MobileSalesPDV
           products={store?.products}
           customers={store?.customers}
@@ -223,21 +225,17 @@ export const MobileApp: React.FC<MobileAppProps> = ({
           onClearCart={handleClearCart}
           onCompleteSale={handleCompleteSale}
         />
-      )}
-
-      {activeTab === 'HISTORY' && (
+      ) : activeTab === 'HISTORY' ? (
         <MobileSalesHistory
           sales={store?.sales}
         />
-      )}
-
-      {activeTab === 'INVENTORY' && (
+      ) : activeTab === 'INVENTORY' ? (
         <MobileInventory
           products={store?.products}
           onUpdateProductStock={handleUpdateProductStock}
           initialFilterCritical={filterCriticalInStock}
         />
-      )}
+      ) : null}
     </MobileLayout>
   );
 };

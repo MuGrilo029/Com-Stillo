@@ -389,27 +389,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id: f.id, installments: f.installments, percentage: Number(f.percentage) || 0
       }));
 
-      setData({
-        products: formattedProducts,
-        suppliers: formattedSuppliers,
-        customers: formattedCustomers,
-        categories: formattedCategories,
-        categoryGroups: formattedGroups,
-        users: formattedUsers,
-        companySettings: formattedSettings,
-        transactions: formattedTransactions,
-        sales: formattedSales,
-        productionOrders: formattedProd,
-        deliveries: formattedDel,
-        quotes: formattedQuotes,
-        orders: formattedOrders,
-        stockMovements: formattedStockMovements,
-        cardFees: formattedCardFees
-      });
+      setData((previous: any) => ({
+        ...previous,
+        products: productsData === null ? previous.products : formattedProducts,
+        suppliers: suppliersData === null ? previous.suppliers : formattedSuppliers,
+        customers: customersData === null ? previous.customers : formattedCustomers,
+        categories: categoriesData === null ? previous.categories : formattedCategories,
+        categoryGroups: groupsData === null ? previous.categoryGroups : formattedGroups,
+        users: usersData === null ? previous.users : formattedUsers,
+        companySettings: settingsData === null ? previous.companySettings : formattedSettings,
+        transactions: transData === null ? previous.transactions : formattedTransactions,
+        sales: salesData === null ? previous.sales : formattedSales,
+        productionOrders: prodData === null ? previous.productionOrders : formattedProd,
+        deliveries: delData === null ? previous.deliveries : formattedDel,
+        quotes: quotesData === null ? previous.quotes : formattedQuotes,
+        orders: oData === null ? previous.orders : formattedOrders,
+        stockMovements: stockMovementsData === null ? previous.stockMovements : formattedStockMovements,
+        cardFees: cardFeesData === null ? previous.cardFees : formattedCardFees
+      }));
 
-      setSimulations((simulationsData || []).map((s: any) => ({
-        id: s.id, description: s.description, amount: Number(s.amount), dueDate: s.due_date, groupId: s.group_id
-      })));
+      if (simulationsData !== null) {
+        setSimulations(simulationsData.map((s: any) => ({
+          id: s.id, description: s.description, amount: Number(s.amount), dueDate: s.due_date, groupId: s.group_id
+        })));
+      }
 
     } catch (error: any) {
       console.error('Error fetching data:', error);

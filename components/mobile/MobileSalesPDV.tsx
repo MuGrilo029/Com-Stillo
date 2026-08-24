@@ -128,7 +128,7 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3.5 pb-24 animate-fade-in-fast relative">
+    <div className="flex flex-col gap-3.5 pb-36 animate-fade-in-fast relative">
       {/* Search Bar & Quick Scanner */}
       <div className="flex items-center gap-2">
         <div className="flex-1 relative">
@@ -316,7 +316,7 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
       )}
 
       {/* Fixed Bottom Summary Bar (acima da barra flutuante de navegação) */}
-      <div className="fixed bottom-[68px] sm:bottom-[74px] left-0 right-0 z-30 px-3 sm:px-4 pointer-events-none">
+      <div className="fixed bottom-[82px] sm:bottom-[88px] left-0 right-0 z-30 px-3 sm:px-4 pointer-events-none">
         <div className="max-w-md mx-auto pointer-events-auto bg-[#111827]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-3.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] flex items-center justify-between gap-3 ring-1 ring-white/10">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">

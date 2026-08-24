@@ -57,45 +57,29 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
   // Metric Computations based on real store data + fallbacks
   const metrics = useMemo(() => {
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
     const periodStart = new Date(today);
     periodStart.setHours(0, 0, 0, 0);
     if (timeFilter === 'WEEK') periodStart.setDate(today.getDate() - 7);
     if (timeFilter === 'MONTH') periodStart.setDate(1);
     if (timeFilter === 'YEAR') periodStart.setMonth(0, 1);
 
-    const periodSales = sales.filter(s => {
-      const saleDate = parseLocalDate(s.date);
-      return s.status === 'COMPLETED' && !Number.isNaN(saleDate.getTime()) && saleDate >= periodStart;
+    const periodTransactions = transactions.filter(transaction => {
+      const transactionDate = parseLocalDate(transaction.dueDate || transaction.date);
+      return !Number.isNaN(transactionDate.getTime()) && transactionDate >= periodStart;
     });
-    const periodExpenses = transactions.reduce((total, transaction) => {
-      const transactionDate = parseLocalDate(transaction.date);
-      return transaction.type === 'EXPENSE' &&
-        !Number.isNaN(transactionDate.getTime()) &&
-        transactionDate >= periodStart
-        ? total + (Number(transaction.amount) || 0)
-        : total;
-    }, 0);
 
-    // 1. Total Revenue / Faturamento
-    const revenue = periodSales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+    const paidIncome = periodTransactions
+      .filter(transaction => transaction.type === 'INCOME' && transaction.status === 'PAID')
+      .reduce((total, transaction) => total + (Number(transaction.amount) || 0), 0);
+    const paidExpenses = periodTransactions
+      .filter(transaction => transaction.type === 'EXPENSE' && transaction.status === 'PAID')
+      .reduce((total, transaction) => total + (Number(transaction.amount) || 0), 0);
+
+    // Keep the same financial definition used by the desktop dashboard.
+    const revenue = paidIncome;
+    const netProfit = paidIncome - paidExpenses;
 
     // 2. Lucro Líquido (Estimado com base em CMV e despesas ou margem)
-    let netProfit = 0;
-    if (periodSales.length > 0) {
-      const estimatedCost = periodSales.reduce((acc, s) => {
-        const itemsCost = (s.items || []).reduce((iAcc, item) => {
-          const prod = products.find(p => p.id === item.productId);
-          const unitCost = prod ? Number(prod.cost) || 0 : 0;
-          return iAcc + (unitCost * (item.quantity || 1));
-        }, 0);
-        return acc + itemsCost;
-      }, 0);
-      netProfit = revenue - estimatedCost - periodExpenses;
-    }
-
     // 3. Valor do Estoque
     let totalStockValue = 0;
     let totalStockItems = 0;

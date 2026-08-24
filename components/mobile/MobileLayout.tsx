@@ -77,7 +77,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex flex-col font-sans selection:bg-wine-700 selection:text-white relative overflow-x-hidden">
+    <div className="fixed inset-0 z-[100] min-h-screen w-screen bg-[#0B0F19] text-slate-100 flex flex-col font-sans selection:bg-wine-700 selection:text-white relative overflow-x-hidden">
       {/* Glow decorative orbs in background for depth */}
       <div className="fixed top-[-10%] left-[-10%] w-[250px] h-[250px] bg-wine-900/20 rounded-full blur-[100px] pointer-events-none -z-10" />
       <div className="fixed top-[40%] right-[-10%] w-[300px] h-[300px] bg-rose-950/20 rounded-full blur-[120px] pointer-events-none -z-10" />
@@ -129,7 +129,7 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({
       </header>
 
       {/* Dynamic Main Viewport */}
-      <main className="flex-1 w-full max-w-md mx-auto px-4 pt-4 pb-28 sm:pb-32 animate-fade-in-fast">
+      <main className="flex-1 w-full max-w-none px-4 pt-4 pb-28 sm:pb-32 overflow-y-auto">
         {children}
       </main>
 

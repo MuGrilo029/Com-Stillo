@@ -193,7 +193,23 @@ const MOCK_DATA = {
 } as any;
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [data, setData] = useState<any>(MOCK_DATA);
+  const [data, setData] = useState<any>({
+    ...MOCK_DATA,
+    transactions: [],
+    products: [],
+    suppliers: [],
+    customers: [],
+    sales: [],
+    deliveries: [],
+    productionOrders: [],
+    users: [],
+    quotes: [],
+    orders: [],
+    stockMovements: [],
+    categories: [],
+    categoryGroups: [],
+    cardFees: []
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [simulations, setSimulations] = useState<any[]>([]);

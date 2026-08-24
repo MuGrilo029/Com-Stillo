@@ -128,7 +128,7 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3.5 pb-36 animate-fade-in-fast relative">
+    <div className="flex flex-col gap-3.5 pb-36 relative">
       {/* Search Bar & Quick Scanner */}
       <div className="flex items-center gap-2">
         <div className="flex-1 relative">

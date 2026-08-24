@@ -105,7 +105,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3.5 pb-4 animate-fade-in-fast">
+    <div className="flex flex-col gap-3.5 pb-4">
       {/* Title and Summary Header */}
       <div className="flex items-center justify-between pt-1">
         <div>

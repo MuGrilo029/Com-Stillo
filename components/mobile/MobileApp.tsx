@@ -27,26 +27,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({
   const [filterCriticalInStock, setFilterCriticalInStock] = useState(false);
 
   // Cart State for PDV
-  const [cart, setCart] = useState<MobileCartItem[]>([
-    {
-      id: 'c1',
-      productId: 'p1',
-      name: 'Sofá Retrátil Florença 2.30m',
-      sku: 'EST-001',
-      category: 'Estofados',
-      unitPrice: 2890.0,
-      quantity: 1
-    },
-    {
-      id: 'c2',
-      productId: 'p4',
-      name: 'Almofada Linho Premium 45x45',
-      sku: 'ALM-088',
-      category: 'Acessórios',
-      unitPrice: 89.9,
-      quantity: 2
-    }
-  ]);
+  const [cart, setCart] = useState<MobileCartItem[]>([]);
 
   // Toast / Mobile Notification System
   const [mobileToasts, setMobileToasts] = useState<{ id: string; message: string; type: 'success' | 'info' | 'error' }[]>([]);
@@ -108,24 +89,34 @@ export const MobileApp: React.FC<MobileAppProps> = ({
   };
 
   // Complete Sale
-  const handleCompleteSale = (saleData: {
+  const handleCompleteSale = async (saleData: {
+    id: string;
+    date: string;
     customerName: string;
     paymentMethod: string;
     total: number;
     items: MobileCartItem[];
-  }) => {
+  }): Promise<boolean> => {
     // Register in global store if available
     if (store && store.addSale) {
       const newSale: Sale = {
-        id: `CS-${Math.floor(1000 + Math.random() * 9000)}`,
+        id: saleData.id,
         customerName: saleData.customerName,
+        customerPhone: '',
+        customerAddress: '',
+        deliveryType: 'PICKUP',
+        date: saleData.date,
         total: saleData.total,
         discount: 0,
         paymentMethod: saleData.paymentMethod,
         paymentType: 'FULL',
-        deliveryType: 'PICKUP',
+        downPayment: saleData.total,
+        downPaymentMethod: saleData.paymentMethod,
+        remainingAmount: 0,
+        remainingPaymentMethod: saleData.paymentMethod,
+        remainingStatus: 'PAID',
         status: 'COMPLETED',
-        date: new Date().toISOString(),
+        observations: '',
         items: saleData.items.map((it) => ({
           productId: it.productId,
           productName: it.name,
@@ -134,11 +125,16 @@ export const MobileApp: React.FC<MobileAppProps> = ({
           category: it.category
         }))
       };
-      store.addSale(newSale);
+      const saved = await store.addSale(newSale);
+      if (!saved) {
+        addToast('Não foi possível salvar a venda.', 'error');
+        return false;
+      }
     }
 
     setCart([]);
     addToast('Venda finalizada com sucesso!', 'success');
+    return true;
   };
 
   // Stock Adjustment

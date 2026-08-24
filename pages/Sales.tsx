@@ -228,6 +228,7 @@ export const Sales: React.FC = () => {
         setCustomerPhone(sale.customerPhone || '');
         setCustomerAddress(sale.customerAddress || '');
         setDeliveryType(sale.deliveryType as any);
+        setDeliveryDate(sale.deliveryDate || '');
 
         // Populate Financials
         setDiscount(sale.discount || 0);
@@ -237,6 +238,8 @@ export const Sales: React.FC = () => {
         setDownPaymentMethod(sale.downPaymentMethod || 'Dinheiro');
         setRemainingPaymentMethod(sale.remainingPaymentMethod || 'Dinheiro');
         setIsRemainingPaidNow(sale.remainingStatus === 'PAID');
+        setInstallments(sale.cardInstallments || 1);
+        setInstallmentsRemaining(sale.cardInstallments || 1);
         setObservations(sale.observations || '');
 
         // Populate Cart

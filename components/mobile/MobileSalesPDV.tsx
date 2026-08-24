@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { MobileCartItem } from './types';
 import { Product, Customer } from '../../types';
+import { getUUID } from '../../lib/utils';
 
 interface MobileSalesPDVProps {
   products?: Product[];
@@ -32,11 +33,13 @@ interface MobileSalesPDVProps {
   onRemoveCartItem: (itemId: string) => void;
   onClearCart: () => void;
   onCompleteSale: (saleData: {
+    id: string;
+    date: string;
     customerName: string;
     paymentMethod: string;
     total: number;
     items: MobileCartItem[];
-  }) => void;
+  }) => Promise<boolean>;
 }
 
 export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
@@ -59,18 +62,10 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
   const [customerName, setCustomerName] = useState('Cliente Balcão');
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'CASH'>('PIX');
   const [lastCompletedSale, setLastCompletedSale] = useState<any>(null);
+  const [isSavingSale, setIsSavingSale] = useState(false);
 
-  // Default mock catalog if products list is empty
   const catalogProducts = useMemo(() => {
-    if (products && products.length > 0) return products;
-    return [
-      { id: 'p1', name: 'Sofá Retrátil Florença 2.30m', sku: 'EST-001', price: 2890.0, cost: 1600.0, quantity: 5, minStock: 2, category: 'Estofados' },
-      { id: 'p2', name: 'Poltrona Giratória Velvet', sku: 'POL-012', price: 790.0, cost: 420.0, quantity: 8, minStock: 3, category: 'Poltronas' },
-      { id: 'p3', name: 'Mesa de Centro Rústica Carvalho', sku: 'MES-004', price: 650.0, cost: 350.0, quantity: 4, minStock: 2, category: 'Móveis' },
-      { id: 'p4', name: 'Almofada Linho Premium 45x45', sku: 'ALM-088', price: 89.9, cost: 35.0, quantity: 35, minStock: 10, category: 'Acessórios' },
-      { id: 'p5', name: 'Puff Redondo Bouclé Off-White', sku: 'PUF-003', price: 340.0, cost: 170.0, quantity: 12, minStock: 4, category: 'Puffs' },
-      { id: 'p6', name: 'Kit Impermeabilização Tecido', sku: 'SRV-001', price: 350.0, cost: 90.0, quantity: 50, minStock: 5, category: 'Serviços' }
-    ];
+    return products;
   }, [products]);
 
   // Categories list
@@ -110,20 +105,26 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
     }).format(val);
   };
 
-  const handleFinishSale = () => {
-    if (cart.length === 0) return;
+  const handleFinishSale = async () => {
+    if (cart.length === 0 || isSavingSale) return;
+    setIsSavingSale(true);
     const saleRecord = {
-      id: `CS-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: getUUID(),
+      date: new Date().toISOString(),
       customerName: customerName.trim() || 'Cliente Balcão',
       paymentMethod,
       total: totalAmount,
-      items: [...cart],
-      date: new Date().toISOString()
+      items: [...cart]
     };
-    onCompleteSale(saleRecord);
-    setLastCompletedSale(saleRecord);
-    setIsCheckoutOpen(false);
-    setIsSuccessModalOpen(true);
+    try {
+      const saved = await onCompleteSale(saleRecord);
+      if (!saved) return;
+      setLastCompletedSale(saleRecord);
+      setIsCheckoutOpen(false);
+      setIsSuccessModalOpen(true);
+    } finally {
+      setIsSavingSale(false);
+    }
   };
 
   return (
@@ -315,7 +316,7 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
       )}
 
       {/* Fixed Bottom Summary Bar (acima da barra flutuante de navegação) */}
-      <div className="fixed bottom-[74px] sm:bottom-[80px] left-0 right-0 z-30 px-3 sm:px-4 pointer-events-none">
+      <div className="fixed bottom-[68px] sm:bottom-[74px] left-0 right-0 z-30 px-3 sm:px-4 pointer-events-none">
         <div className="max-w-md mx-auto pointer-events-auto bg-[#111827]/95 backdrop-blur-2xl border border-white/15 rounded-3xl p-3.5 shadow-[0_10px_35px_rgba(0,0,0,0.8)] flex items-center justify-between gap-3 ring-1 ring-white/10">
           <div className="flex flex-col min-w-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -511,10 +512,11 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
             {/* Confirm Button */}
             <button
               onClick={handleFinishSale}
+              disabled={isSavingSale}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-red-900 via-wine-900 to-rose-900 hover:from-red-800 hover:to-rose-800 text-white font-extrabold text-sm shadow-xl shadow-red-950/60 active:scale-95 transition-all flex items-center justify-center gap-2 mt-1"
             >
               <CheckCircle2 size={18} />
-              Confirmar e Emitir Comprovante
+              {isSavingSale ? 'Salvando venda...' : 'Confirmar e Emitir Comprovante'}
             </button>
           </div>
         </div>

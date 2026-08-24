@@ -42,19 +42,8 @@ export const MobileInventory: React.FC<MobileInventoryProps> = ({
   const [stockAdjustmentQty, setStockAdjustmentQty] = useState<number>(0);
   const [adjustmentReason, setAdjustmentReason] = useState<string>('Ajuste Manual');
 
-  // Fallback demo inventory if empty
   const catalogProducts: Product[] = useMemo(() => {
-    if (products && products.length > 0) return products;
-    return [
-      { id: 'p1', name: 'Sofá Retrátil Florença 2.30m', sku: 'EST-001', price: 2890.0, cost: 1600.0, quantity: 5, minStock: 2, category: 'Estofados' },
-      { id: 'p2', name: 'Poltrona Giratória Velvet Terracota', sku: 'POL-012', price: 790.0, cost: 420.0, quantity: 2, minStock: 4, category: 'Poltronas' },
-      { id: 'p3', name: 'Mesa de Centro Rústica Carvalho', sku: 'MES-004', price: 650.0, cost: 350.0, quantity: 1, minStock: 3, category: 'Móveis' },
-      { id: 'p4', name: 'Almofada Linho Premium 45x45', sku: 'ALM-088', price: 89.9, cost: 35.0, quantity: 35, minStock: 10, category: 'Acessórios' },
-      { id: 'p5', name: 'Puff Redondo Bouclé Off-White', sku: 'PUF-003', price: 340.0, cost: 170.0, quantity: 12, minStock: 4, category: 'Puffs' },
-      { id: 'p6', name: 'Kit Impermeabilização Tecido', sku: 'SRV-001', price: 350.0, cost: 90.0, quantity: 0, minStock: 5, category: 'Serviços' },
-      { id: 'p7', name: 'Sofá Modular Comfort 3.00m Bouclé', sku: 'EST-008', price: 4800.0, cost: 2700.0, quantity: 3, minStock: 2, category: 'Estofados' },
-      { id: 'p8', name: 'Mesa de Jantar Madeira Maciça 6 Lugares', sku: 'MES-015', price: 2100.0, cost: 1200.0, quantity: 0, minStock: 2, category: 'Móveis' }
-    ];
+    return products;
   }, [products]);
 
   // Metric Computations: "Total em Estoque" and "Itens Parados / Críticos"

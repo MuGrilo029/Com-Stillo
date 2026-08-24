@@ -3,7 +3,6 @@ import {
   History,
   Search,
   CheckCircle,
-  Clock,
   AlertCircle,
   ChevronRight,
   Filter,
@@ -16,7 +15,8 @@ import {
   Receipt,
   Share2,
   FileText,
-  DollarSign
+  DollarSign,
+  Clock
 } from 'lucide-react';
 import { Sale } from '../../types';
 
@@ -33,95 +33,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING' | 'TODAY' | 'WEEK'>('ALL');
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<Sale | null>(null);
 
-  // Fallback demo sales if empty
-  const allSales: Sale[] = useMemo(() => {
-    if (sales && sales.length > 0) return sales;
-    const now = new Date();
-    return [
-      {
-        id: 'CS-8492',
-        customerName: 'Mariana Duarte Souza',
-        customerPhone: '(11) 98765-4321',
-        total: 3890.0,
-        discount: 0,
-        paymentMethod: 'PIX',
-        paymentType: 'FULL',
-        status: 'COMPLETED',
-        deliveryType: 'DELIVERY',
-        date: new Date(now.getTime() - 25 * 60 * 1000).toISOString(),
-        items: [
-          { productName: 'Sofá Retrátil Florença 2.30m', quantity: 1, unitPrice: 2890.0, category: 'Estofados' },
-          { productName: 'Poltrona Giratória Velvet', quantity: 1, unitPrice: 790.0, category: 'Poltronas' },
-          { productName: 'Kit Impermeabilização Tecido', quantity: 1, unitPrice: 210.0, category: 'Serviços' }
-        ]
-      },
-      {
-        id: 'CS-8491',
-        customerName: 'Rodrigo Alves de Lima',
-        customerPhone: '(11) 97123-8899',
-        total: 1450.0,
-        discount: 50,
-        paymentMethod: 'Cartão Crédito 3x',
-        paymentType: 'PARTIAL',
-        remainingAmount: 700.0,
-        status: 'PENDING',
-        deliveryType: 'PICKUP',
-        date: new Date(now.getTime() - 2 * 3600 * 1000).toISOString(),
-        items: [
-          { productName: 'Mesa de Centro Rústica Carvalho', quantity: 2, unitPrice: 650.0, category: 'Móveis' },
-          { productName: 'Almofada Linho Premium 45x45', quantity: 2, unitPrice: 89.9, category: 'Acessórios' }
-        ]
-      },
-      {
-        id: 'CS-8489',
-        customerName: 'Camila Fernandes Costa',
-        customerPhone: '(11) 99887-1122',
-        total: 890.0,
-        discount: 0,
-        paymentMethod: 'PIX',
-        paymentType: 'FULL',
-        status: 'COMPLETED',
-        deliveryType: 'PICKUP',
-        date: new Date(now.getTime() - 5 * 3600 * 1000).toISOString(),
-        items: [
-          { productName: 'Poltrona Giratória Velvet', quantity: 1, unitPrice: 790.0, category: 'Poltronas' },
-          { productName: 'Almofada Linho Premium 45x45', quantity: 1, unitPrice: 100.0, category: 'Acessórios' }
-        ]
-      },
-      {
-        id: 'CS-8485',
-        customerName: 'Lucas Barreto Mendes',
-        customerPhone: '(11) 98111-2233',
-        total: 5200.0,
-        discount: 200,
-        paymentMethod: 'PIX',
-        paymentType: 'FULL',
-        status: 'COMPLETED',
-        deliveryType: 'DELIVERY',
-        date: new Date(now.getTime() - 24 * 3600 * 1000).toISOString(),
-        items: [
-          { productName: 'Sofá Modular Comfort 3.00m', quantity: 1, unitPrice: 4800.0, category: 'Estofados' },
-          { productName: 'Puff Redondo Bouclé', quantity: 2, unitPrice: 300.0, category: 'Puffs' }
-        ]
-      },
-      {
-        id: 'CS-8480',
-        customerName: 'Juliana Paes Rocha',
-        customerPhone: '(11) 97766-5544',
-        total: 2100.0,
-        discount: 0,
-        paymentMethod: 'Boleto 30 Dias',
-        paymentType: 'PARTIAL',
-        remainingAmount: 2100.0,
-        status: 'PENDING',
-        deliveryType: 'DELIVERY',
-        date: new Date(now.getTime() - 48 * 3600 * 1000).toISOString(),
-        items: [
-          { productName: 'Mesa de Jantar Madeira Maciça', quantity: 1, unitPrice: 2100.0, category: 'Móveis' }
-        ]
-      }
-    ];
-  }, [sales]);
+  const allSales: Sale[] = useMemo(() => sales, [sales]);
 
   // Filter Logic
   const filteredSales = useMemo(() => {
@@ -187,6 +99,10 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   const totalFilteredAmount = useMemo(() => {
     return filteredSales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
   }, [filteredSales]);
+
+  const printSale = () => {
+    window.print();
+  };
 
   return (
     <div className="flex flex-col gap-3.5 pb-4 animate-fade-in-fast">
@@ -357,6 +273,9 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
                 {selectedSaleDetail.customerPhone && (
                   <p className="text-[10px] text-slate-400">{selectedSaleDetail.customerPhone}</p>
                 )}
+                {selectedSaleDetail.customerAddress && (
+                  <p className="text-[10px] text-slate-400">{selectedSaleDetail.customerAddress}</p>
+                )}
               </div>
               <span
                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
@@ -369,6 +288,17 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
               </span>
             </div>
 
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="bg-[#111827] rounded-xl p-3 border border-white/5">
+                <span className="text-slate-400 block">Entrega</span>
+                <strong className="text-white">{selectedSaleDetail.deliveryType === 'DELIVERY' ? 'Entrega' : 'Retirada'}</strong>
+              </div>
+              <div className="bg-[#111827] rounded-xl p-3 border border-white/5">
+                <span className="text-slate-400 block">Tipo de pagamento</span>
+                <strong className="text-white">{selectedSaleDetail.paymentType === 'PARTIAL' ? 'Parcial' : 'Integral'}</strong>
+              </div>
+            </div>
+
             {/* Items List */}
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -379,7 +309,8 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
                   <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-white/5 last:border-none">
                     <div className="min-w-0 flex-1 pr-2">
                       <p className="font-semibold text-white truncate">{item.productName}</p>
-                      <p className="text-[10px] text-slate-400">{item.quantity}x {formatCurrency(item.unitPrice)}</p>
+                      <p className="text-[10px] text-slate-400">{item.quantity}x {formatCurrency(item.unitPrice)}{item.variantName ? ` | ${item.variantName}` : ''}</p>
+                      {item.description && <p className="text-[10px] text-slate-500">{item.description}</p>}
                     </div>
                     <span className="font-bold text-slate-200">
                       {formatCurrency(item.quantity * item.unitPrice)}
@@ -401,16 +332,59 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
               </div>
             </div>
 
-            {/* Close / Action Button */}
-            <button
-              onClick={() => setSelectedSaleDetail(null)}
-              className="w-full py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors"
-            >
-              Fechar Detalhes
-            </button>
+            <div className="bg-[#111827] rounded-2xl p-3 border border-white/5 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-400"><span>Desconto</span><strong className="text-white">{formatCurrency(selectedSaleDetail.discount || 0)}</strong></div>
+              {selectedSaleDetail.paymentType === 'PARTIAL' && (
+                <>
+                  <div className="flex justify-between text-slate-400"><span>Entrada ({selectedSaleDetail.downPaymentMethod || selectedSaleDetail.paymentMethod})</span><strong className="text-emerald-400">{formatCurrency(selectedSaleDetail.downPayment || 0)}</strong></div>
+                  <div className="flex justify-between text-slate-400"><span>Restante ({selectedSaleDetail.remainingPaymentMethod || 'Não informado'})</span><strong className="text-amber-400">{formatCurrency(selectedSaleDetail.remainingAmount || 0)}</strong></div>
+                  <div className="flex justify-between text-slate-400"><span>Status do restante</span><strong className="text-white">{selectedSaleDetail.remainingStatus === 'PAID' ? 'Pago' : 'Pendente'}</strong></div>
+                </>
+              )}
+              {selectedSaleDetail.deliveryDate && <div className="flex justify-between text-slate-400"><span>Data de entrega</span><strong className="text-white">{formatDateTime(selectedSaleDetail.deliveryDate)}</strong></div>}
+            </div>
+
+            {selectedSaleDetail.observations && (
+              <div className="bg-[#111827] rounded-2xl p-3 border border-white/5 text-xs text-slate-300">
+                <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Observações</span>
+                {selectedSaleDetail.observations}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={printSale} className="py-3 rounded-2xl bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2">
+                <Receipt size={15} /> Imprimir A4
+              </button>
+              <button onClick={() => setSelectedSaleDetail(null)} className="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors">
+                Fechar Detalhes
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {selectedSaleDetail && (
+        <div id="mobile-sale-print" aria-hidden="true">
+          <h1>COM STILLO</h1>
+          <h2>Comprovante de Venda</h2>
+          <p><strong>Pedido:</strong> {selectedSaleDetail.id}</p>
+          <p><strong>Data:</strong> {new Date(selectedSaleDetail.date).toLocaleString('pt-BR')}</p>
+          <hr />
+          <p><strong>Cliente:</strong> {selectedSaleDetail.customerName || 'Cliente Balcão'}</p>
+          {selectedSaleDetail.customerPhone && <p><strong>Telefone:</strong> {selectedSaleDetail.customerPhone}</p>}
+          {selectedSaleDetail.customerAddress && <p><strong>Endereço:</strong> {selectedSaleDetail.customerAddress}</p>}
+          <p><strong>Entrega:</strong> {selectedSaleDetail.deliveryType === 'DELIVERY' ? 'Entrega' : 'Retirada'}</p>
+          <table><thead><tr><th>Qtd.</th><th>Produto</th><th>Unitário</th><th>Total</th></tr></thead><tbody>
+            {(selectedSaleDetail.items || []).map((item, index) => <tr key={index}><td>{item.quantity}</td><td>{item.productName}{item.variantName ? ` - ${item.variantName}` : ''}</td><td>{formatCurrency(item.unitPrice)}</td><td>{formatCurrency(item.quantity * item.unitPrice)}</td></tr>)}
+          </tbody></table>
+          <p><strong>Pagamento:</strong> {selectedSaleDetail.paymentMethod || 'Não informado'}</p>
+          <p><strong>Desconto:</strong> {formatCurrency(selectedSaleDetail.discount || 0)}</p>
+          {selectedSaleDetail.paymentType === 'PARTIAL' && <><p><strong>Entrada:</strong> {formatCurrency(selectedSaleDetail.downPayment || 0)}</p><p><strong>Restante:</strong> {formatCurrency(selectedSaleDetail.remainingAmount || 0)} ({selectedSaleDetail.remainingStatus === 'PAID' ? 'Pago' : 'Pendente'})</p></>}
+          <h2 className="print-total">Total: {formatCurrency(selectedSaleDetail.total)}</h2>
+          {selectedSaleDetail.observations && <p><strong>Observações:</strong> {selectedSaleDetail.observations}</p>}
+        </div>
+      )}
+      <style>{`#mobile-sale-print { display: none; } @media print { @page { size: A4; margin: 15mm; } body * { visibility: hidden !important; } #mobile-sale-print, #mobile-sale-print * { visibility: visible !important; } #mobile-sale-print { display: block !important; position: absolute; inset: 0; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.45; } #mobile-sale-print h1 { font-size: 22pt; margin: 0 0 4mm; } #mobile-sale-print h2 { font-size: 15pt; margin: 0 0 5mm; } #mobile-sale-print hr { border: 0; border-top: 1px solid #aaa; margin: 5mm 0; } #mobile-sale-print table { width: 100%; border-collapse: collapse; margin: 7mm 0; } #mobile-sale-print th, #mobile-sale-print td { border-bottom: 1px solid #ccc; padding: 3mm 2mm; text-align: left; } #mobile-sale-print th:nth-child(n+3), #mobile-sale-print td:nth-child(n+3) { text-align: right; } #mobile-sale-print .print-total { text-align: right; font-size: 18pt; margin-top: 8mm; } }`}</style>
     </div>
   );
 };

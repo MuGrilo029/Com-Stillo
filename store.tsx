@@ -341,8 +341,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cardFeeAmount: Number(s.card_fee_amount) || 0,
         cardFeePercentage: Number(s.card_fee_percentage) || 0,
         cardInstallments: Number(s.card_installments) || 0,
+        downPaymentMethod: s.down_payment_method || '', remainingPaymentMethod: s.remaining_payment_method || '',
         items: s.sale_items?.map((i: any) => ({
-          id: i.id, productId: i.product_id, productName: i.product_name, description: i.description, quantity: i.quantity, unitPrice: i.unit_price, category: i.category, color: i.color, byOrder: i.by_order, variantId: i.variant_id, variantName: i.variant_name
+          id: i.id, productId: i.product_id, productName: i.product_name, description: i.description, quantity: i.quantity, unitPrice: i.unit_price, category: i.category, color: i.color, byOrder: i.by_order, variantId: i.variant_id, variantName: i.variant_name, serviceType: i.service_type, serviceSpecs: i.service_specs
         })) || []
       }));
 
@@ -1287,28 +1288,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const previousSale = data.sales.find((item: Sale) => item.id === s.id);
-    setData((prev: any) => ({ ...prev, sales: prev.sales.map((item: Sale) => item.id === s.id ? s : item) }));
+    if (!previousSale) {
+      addNotification('Erro: Venda não encontrada para edição.', 'error');
+      return false;
+    }
+
+    const updatedSale: Sale = { ...previousSale, ...s };
+    setData((prev: any) => ({ ...prev, sales: prev.sales.map((item: Sale) => item.id === s.id ? updatedSale : item) }));
 
     const { error } = await supabase.from('sales').update({
-      customer_name: s.customerName,
-      customer_phone: s.customerPhone,
-      customer_address: s.customerAddress,
-      delivery_type: s.deliveryType,
-      date: s.date,
-      total: s.total,
-      discount: s.discount,
-      payment_method: s.paymentMethod,
-      down_payment_method: s.downPaymentMethod,
-      remaining_payment_method: s.remainingPaymentMethod,
-      payment_type: s.paymentType,
-      down_payment: s.downPayment,
-      remaining_amount: s.remainingAmount,
-      status: s.status,
-      observations: s.observations,
-      delivery_date: s.deliveryDate || null,
-      card_fee_amount: s.cardFeeAmount || 0,
-      card_fee_percentage: s.cardFeePercentage || 0,
-      card_installments: s.cardInstallments || 0
+      customer_name: updatedSale.customerName,
+      customer_phone: updatedSale.customerPhone,
+      customer_address: updatedSale.customerAddress,
+      delivery_type: updatedSale.deliveryType,
+      date: updatedSale.date,
+      total: updatedSale.total,
+      discount: updatedSale.discount,
+      payment_method: updatedSale.paymentMethod,
+      down_payment_method: updatedSale.downPaymentMethod,
+      remaining_payment_method: updatedSale.remainingPaymentMethod,
+      payment_type: updatedSale.paymentType,
+      down_payment: updatedSale.downPayment,
+      remaining_amount: updatedSale.remainingAmount,
+      remaining_status: updatedSale.remainingStatus,
+      status: updatedSale.status,
+      observations: updatedSale.observations,
+      delivery_date: updatedSale.deliveryDate || null,
+      card_fee_amount: updatedSale.cardFeeAmount || 0,
+      card_fee_percentage: updatedSale.cardFeePercentage || 0,
+      card_installments: updatedSale.cardInstallments || 0
     }).eq('id', s.id);
 
     if (error) {
@@ -1331,9 +1339,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false; // Stop execution to prevent mess
       }
 
-      console.log(`📦 STORE: Inserindo novos itens para venda ${s.id}...`, s.items);
+      console.log(`📦 STORE: Inserindo novos itens para venda ${updatedSale.id}...`, updatedSale.items);
 
-      const items = s.items.map(i => {
+      const items = updatedSale.items.map(i => {
         // FK Safety: Only send product_id if it exists in the products table
         // We trust the productId passed from Sales.tsx more now
         const productExists = data.products.some((p: Product) => p.id === i.productId);
@@ -1353,6 +1361,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           service_type: i.serviceType,
           service_specs: typeof i.serviceSpecs === 'object' ? JSON.stringify(i.serviceSpecs) : i.serviceSpecs,
           color: i.color,
+          variant_id: i.variantId || null,
+          variant_name: i.variantName || null,
           by_order: i.byOrder
         };
       });
@@ -1385,7 +1395,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           // Update the specific sale in local state with the confirmed items from DB
           setData((prev: any) => ({
             ...prev,
-            sales: prev.sales.map((item: Sale) => item.id === s.id ? { ...s, items: newLocalItems || s.items } : item)
+            sales: prev.sales.map((item: Sale) => item.id === s.id ? { ...updatedSale, items: newLocalItems || updatedSale.items } : item)
           }));
 
           return true;

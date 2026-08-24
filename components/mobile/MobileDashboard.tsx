@@ -52,18 +52,32 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
 
+    const periodStart = new Date(today);
+    if (timeFilter === 'TODAY') periodStart.setHours(0, 0, 0, 0);
+    if (timeFilter === 'WEEK') periodStart.setDate(today.getDate() - 7);
+    if (timeFilter === 'MONTH') periodStart.setDate(1);
+    if (timeFilter === 'YEAR') periodStart.setMonth(0, 1);
+
+    const periodSales = sales.filter(s => {
+      const saleDate = new Date(s.date);
+      return !Number.isNaN(saleDate.getTime()) && saleDate >= periodStart;
+    });
+    const periodExpenses = transactions.reduce((total, transaction) => {
+      const transactionDate = new Date(transaction.date);
+      return transaction.type === 'EXPENSE' &&
+        !Number.isNaN(transactionDate.getTime()) &&
+        transactionDate >= periodStart
+        ? total + (Number(transaction.amount) || 0)
+        : total;
+    }, 0);
+
     // 1. Total Revenue / Faturamento
-    let revenue = 0;
-    if (sales && sales.length > 0) {
-      revenue = sales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
-    } else {
-      revenue = 98450.0;
-    }
+    const revenue = periodSales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
 
     // 2. Lucro Líquido (Estimado com base em CMV e despesas ou margem)
     let netProfit = 0;
-    if (sales && sales.length > 0) {
-      const estimatedCost = sales.reduce((acc, s) => {
+    if (periodSales.length > 0) {
+      const estimatedCost = periodSales.reduce((acc, s) => {
         const itemsCost = (s.items || []).reduce((iAcc, item) => {
           const prod = products.find(p => p.id === item.productId);
           const unitCost = prod ? Number(prod.cost) || 0 : (Number(item.unitPrice) * 0.55);
@@ -71,9 +85,7 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
         }, 0);
         return acc + itemsCost;
       }, 0);
-      netProfit = Math.max(revenue - estimatedCost, revenue * 0.42);
-    } else {
-      netProfit = 42850.0;
+      netProfit = revenue - estimatedCost - periodExpenses;
     }
 
     // 3. Valor do Estoque
@@ -82,17 +94,12 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
     if (products && products.length > 0) {
       totalStockValue = products.reduce((acc, p) => acc + ((Number(p.cost) || Number(p.price) * 0.6) * (Number(p.quantity) || 0)), 0);
       totalStockItems = products.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
-    } else {
-      totalStockValue = 184200.0;
-      totalStockItems = 1420;
     }
 
     // 4. Itens Críticos (Estoque <= minStock ou <= 3)
     let criticalItemsCount = 0;
     if (products && products.length > 0) {
       criticalItemsCount = products.filter(p => (Number(p.quantity) || 0) <= (Number(p.minStock) || 3)).length;
-    } else {
-      criticalItemsCount = 6;
     }
 
     return {
@@ -102,7 +109,8 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
       profitGrowth: 14.2,
       totalStockValue,
       totalStockItems,
-      criticalItemsCount
+      criticalItemsCount,
+      goalProgress: Math.min(100, (revenue / 100000) * 100)
     };
   }, [sales, products, transactions, timeFilter]);
 
@@ -330,19 +338,19 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
               Meta Mensal de Vendas
             </span>
           </div>
-          <span className="text-xs font-black text-rose-400">78.5%</span>
+          <span className="text-xs font-black text-rose-400">{metrics.goalProgress.toFixed(1)}%</span>
         </div>
 
         {/* Progress bar */}
         <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-white/5">
           <div
             className="h-full rounded-full bg-gradient-to-r from-red-800 via-rose-600 to-emerald-400 transition-all duration-1000 shadow-sm"
-            style={{ width: '78.5%' }}
+            style={{ width: `${Math.min(100, (metrics.revenue / 100000) * 100)}%` }}
           />
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <span>Realizado: <strong className="text-white">R$ 78.500</strong></span>
+          <span>Realizado: <strong className="text-white">{formatCurrency(metrics.revenue)}</strong></span>
           <span>Meta: <strong className="text-slate-300">R$ 100.000</strong></span>
         </div>
       </div>

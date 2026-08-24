@@ -101,22 +101,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   }, [filteredSales]);
 
   const printSale = () => {
-    const printable = document.getElementById('mobile-sale-print');
-    if (!printable) return;
-
-    const printWindow = window.open('', '_blank', 'width=900,height=700');
-    if (!printWindow) {
-      alert('Permita a abertura de pop-ups para imprimir o comprovante.');
-      return;
-    }
-
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Comprovante ${selectedSaleDetail?.id || ''}</title><style>@page{size:A4;margin:15mm}body{color:#111;background:#fff;font-family:Arial,sans-serif;font-size:12pt;line-height:1.45}h1{font-size:22pt;margin:0 0 4mm}h2{font-size:15pt;margin:0 0 5mm}hr{border:0;border-top:1px solid #aaa;margin:5mm 0}table{width:100%;border-collapse:collapse;margin:7mm 0}th,td{border-bottom:1px solid #ccc;padding:3mm 2mm;text-align:left}th:nth-child(n+3),td:nth-child(n+3){text-align:right}.print-total{text-align:right;font-size:18pt;margin-top:8mm}</style></head><body>${printable.innerHTML}</body></html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.setTimeout(() => {
-      printWindow.print();
-      printWindow.close();
-    }, 250);
+    window.print();
   };
 
   return (

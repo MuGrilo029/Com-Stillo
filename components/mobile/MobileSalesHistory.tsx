@@ -237,11 +237,11 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
       {/* Sale Detail Receipt Sheet / Modal */}
       {selectedSaleDetail && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in-fast"
+          className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in-fast"
           onClick={() => setSelectedSaleDetail(null)}
         >
           <div
-            className="w-full max-w-md bg-[#182234] border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl animate-slide-up flex flex-col gap-4 text-slate-100 max-h-[90vh]"
+            className="w-full max-w-md bg-[#182234] border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl animate-slide-up flex flex-col gap-4 text-slate-100 max-h-[90vh] overflow-y-auto custom-scrollbar"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}

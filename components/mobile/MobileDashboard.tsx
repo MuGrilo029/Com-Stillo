@@ -46,6 +46,14 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
     YEAR: 'Este Ano'
   };
 
+  const parseLocalDate = (value: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    return new Date(value);
+  };
+
   // Metric Computations based on real store data + fallbacks
   const metrics = useMemo(() => {
     const today = new Date();
@@ -53,17 +61,17 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
     const currentYear = today.getFullYear();
 
     const periodStart = new Date(today);
-    if (timeFilter === 'TODAY') periodStart.setHours(0, 0, 0, 0);
+    periodStart.setHours(0, 0, 0, 0);
     if (timeFilter === 'WEEK') periodStart.setDate(today.getDate() - 7);
     if (timeFilter === 'MONTH') periodStart.setDate(1);
     if (timeFilter === 'YEAR') periodStart.setMonth(0, 1);
 
     const periodSales = sales.filter(s => {
-      const saleDate = new Date(s.date);
-      return !Number.isNaN(saleDate.getTime()) && saleDate >= periodStart;
+      const saleDate = parseLocalDate(s.date);
+      return s.status === 'COMPLETED' && !Number.isNaN(saleDate.getTime()) && saleDate >= periodStart;
     });
     const periodExpenses = transactions.reduce((total, transaction) => {
-      const transactionDate = new Date(transaction.date);
+      const transactionDate = parseLocalDate(transaction.date);
       return transaction.type === 'EXPENSE' &&
         !Number.isNaN(transactionDate.getTime()) &&
         transactionDate >= periodStart
@@ -80,7 +88,7 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
       const estimatedCost = periodSales.reduce((acc, s) => {
         const itemsCost = (s.items || []).reduce((iAcc, item) => {
           const prod = products.find(p => p.id === item.productId);
-          const unitCost = prod ? Number(prod.cost) || 0 : (Number(item.unitPrice) * 0.55);
+          const unitCost = prod ? Number(prod.cost) || 0 : 0;
           return iAcc + (unitCost * (item.quantity || 1));
         }, 0);
         return acc + itemsCost;

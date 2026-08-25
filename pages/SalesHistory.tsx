@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Sale, SaleItem, Product } from '../types';
 import { parseISO, isInRange as utilsIsInRange } from '../lib/utils';
+import { SalePrintTemplate } from '../components/SalePrintTemplate';
 
 
 export const SalesHistory: React.FC = () => {
@@ -408,7 +409,7 @@ export const SalesHistory: React.FC = () => {
             </Modal>
 
             {/* PRINTABLE TEMPLATE (Reused from Sales) */}
-            <div id="printable-order" className="hidden print:block text-black">
+            <div id="legacy-printable-order" className="hidden text-black">
                 {viewingSale && (
                     <div className="w-full h-full font-sans leading-tight p-4 max-w-[210mm] mx-auto">
                         <style>{`
@@ -552,6 +553,12 @@ export const SalesHistory: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            <SalePrintTemplate
+                sale={viewingSale}
+                companySettings={companySettings}
+                transactions={transactions}
+            />
 
             {/* PAYMENT RECEIPT TEMPLATE */}
             <div id="printable-receipt" className="hidden print:block text-black">

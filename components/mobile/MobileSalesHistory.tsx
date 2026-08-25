@@ -18,15 +18,21 @@ import {
   DollarSign,
   Clock
 } from 'lucide-react';
-import { Sale } from '../../types';
+import { CompanySettings, Sale, Transaction } from '../../types';
+import { SalePrintTemplate } from '../SalePrintTemplate';
+import { jsPDF } from 'jspdf';
 
 interface MobileSalesHistoryProps {
   sales?: Sale[];
+  transactions?: Transaction[];
+  companySettings: CompanySettings;
   onSelectSale?: (sale: Sale) => void;
 }
 
 export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   sales = [],
+  transactions = [],
+  companySettings,
   onSelectSale
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -101,20 +107,93 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   }, [filteredSales]);
 
   const printSale = async () => {
-    const printable = document.getElementById('mobile-sale-print');
-    if (!printable) return;
+    if (!selectedSaleDetail) return;
 
-    const isMobileDevice = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
-    if (!isMobileDevice) {
-      window.print();
-      return;
+    const sale = selectedSaleDetail;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 15;
+    const right = pageWidth - margin;
+    let y = 18;
+    const money = (value: number) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const line = (position: number) => pdf.line(margin, position, right, position);
+    const addText = (text: string, x: number, position: number, size = 9, bold = false) => {
+      pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+      pdf.setFontSize(size);
+      pdf.text(text, x, position);
+    };
+
+    addText(companySettings.name || 'COM STILLO', margin, y, 16, true);
+    addText('PEDIDO DE VENDA', right, y, 14, true);
+    pdf.text(`Av. ${companySettings.address || ''} | ${companySettings.phone || ''}`, margin, y + 7);
+    pdf.text(`CNPJ: ${companySettings.cnpj || ''}`, margin, y + 13);
+    pdf.text(`#${sale.id.slice(0, 8)}`, right, y + 7, { align: 'right' });
+    pdf.text(`${new Date(sale.date).toLocaleDateString('pt-BR')} ${new Date(sale.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, right, y + 13, { align: 'right' });
+    line(y + 17);
+    y += 24;
+
+    pdf.rect(margin, y - 5, pageWidth - margin * 2, 17);
+    addText(`Cliente: ${sale.customerName || 'Cliente Balcão'}`, margin + 3, y + 1, 10, true);
+    addText(`Telefone: ${sale.customerPhone || 'N/A'}`, margin + 3, y + 7, 10, true);
+    addText(`Status: ${sale.status === 'COMPLETED' ? 'CONCLUÍDO' : 'CANCELADO'}`, right - 3, y + 1, 10, true);
+    addText(`Entrega: ${sale.deliveryType === 'DELIVERY' ? 'Domicílio' : 'Retirada'}`, right - 3, y + 7, 10, true);
+    y += 20;
+
+    addText('QTD', margin, y, 8, true);
+    addText('ITEM / DESCRIÇÃO', margin + 15, y, 8, true);
+    addText('UNIT.', right - 42, y, 8, true);
+    addText('TOTAL', right, y, 8, true);
+    line(y + 2);
+    y += 8;
+    sale.items.forEach(item => {
+      const description = item.description ? `${item.productName} - ${item.description}` : item.productName;
+      const wrapped = pdf.splitTextToSize(description, 90);
+      addText(`${item.quantity}x`, margin, y, 8, true);
+      pdf.text(wrapped, margin + 15, y);
+      addText(money(item.unitPrice), right - 42, y, 8);
+      addText(money(item.quantity * item.unitPrice), right, y, 8, true);
+      y += Math.max(6, wrapped.length * 4 + 2);
+      line(y - 2);
+    });
+
+    const subtotal = sale.items.reduce((total, item) => total + item.quantity * item.unitPrice, 0);
+    y += 5;
+    addText(`Subtotal: ${money(subtotal)}`, right - 55, y, 9);
+    addText(`Desconto: - ${money(sale.discount || 0)}`, right - 55, y + 6, 9);
+    line(y + 9);
+    addText(`TOTAL: ${money(sale.total)}`, right - 55, y + 17, 13, true);
+    y += 28;
+    addText(`Forma de Pagamento: ${sale.paymentType === 'PARTIAL' ? 'Parcial / Entrada + Resto' : 'Integral / À Vista'}`, margin, y, 8, true);
+    addText(`Meio: ${sale.paymentMethod || 'N/A'}`, margin + 92, y, 8);
+    if (sale.paymentType === 'PARTIAL') {
+      addText(`Entrada: ${money(sale.downPayment)} (${sale.downPaymentMethod || 'N/A'})`, margin, y + 6, 8);
+      addText(`Restante: ${money(sale.remainingAmount)} (${sale.remainingPaymentMethod || 'N/A'})`, margin + 92, y + 6, 8);
+      y += 6;
     }
 
-    const printHtml = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comprovante ${selectedSaleDetail?.id || ''}</title><style>@page{size:A4;margin:15mm}body{color:#111;background:#fff;font-family:Arial,sans-serif;font-size:12pt;line-height:1.45}h1{font-size:22pt;margin:0 0 4mm}h2{font-size:15pt;margin:0 0 5mm}hr{border:0;border-top:1px solid #aaa;margin:5mm 0}table{width:100%;border-collapse:collapse;margin:7mm 0}th,td{border-bottom:1px solid #ccc;padding:3mm 2mm;text-align:left}th:nth-child(n+3),td:nth-child(n+3){text-align:right}.print-total{text-align:right;font-size:18pt;margin-top:8mm}</style></head><body>${printable.innerHTML}</body></html>`;
-    const fileName = `comprovante-${selectedSaleDetail?.id || 'venda'}.html`;
+    y += 12;
+    line(y - 4);
+    addText('HISTÓRICO DE PAGAMENTOS', margin, y + 2, 8, true);
+    const paidTransactions = transactions.filter(transaction => transaction.status === 'PAID' && transaction.type === 'INCOME' && (transaction.saleId === sale.id || (transaction.description && transaction.description.includes(`Venda #${sale.id.slice(0, 4)}`))));
+    y += 9;
+    paidTransactions.forEach(transaction => {
+      addText(`${new Date(transaction.date).toLocaleDateString('pt-BR')} - ${transaction.category || 'Pagamento'}`, margin, y, 8);
+      addText(money(transaction.amount), right, y, 8, true);
+      y += 5;
+    });
+    if (paidTransactions.length === 0) addText('Nenhum pagamento registrado.', margin, y, 8);
+    addText(`SALDO DEVEDOR: ${money(sale.total - paidTransactions.reduce((total, transaction) => total + transaction.amount, 0))}`, right, y + 7, 9, true);
+    y += 29;
+    line(y);
+    addText(companySettings.name || 'COM STILLO', margin + 25, y + 5, 8, true);
+    addText('Assinatura do Responsável', margin + 21, y + 10, 7);
+    addText(sale.customerName || 'Cliente', right - 55, y + 5, 8, true);
+    addText('Assinatura do Cliente', right - 52, y + 10, 7);
 
+    const pdfBlob = pdf.output('blob');
+    const fileName = `comprovante-${sale.id}.pdf`;
     try {
-      const file = new File([printHtml], fileName, { type: 'text/html' });
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ title: 'Comprovante de venda', files: [file] });
         return;
@@ -122,8 +201,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
     } catch (error) {
       if ((error as DOMException).name === 'AbortError') return;
     }
-
-    const downloadUrl = URL.createObjectURL(new Blob([printHtml], { type: 'text/html' }));
+    const downloadUrl = URL.createObjectURL(pdfBlob);
     const downloadLink = document.createElement('a');
     downloadLink.href = downloadUrl;
     downloadLink.download = fileName;
@@ -380,7 +458,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
 
             <div className="grid grid-cols-2 gap-2">
               <button onClick={printSale} className="py-3 rounded-2xl bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2">
-                <Receipt size={15} /> {typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches) ? 'Compartilhar A4' : 'Imprimir A4'}
+                <Receipt size={15} /> Salvar / Compartilhar PDF
               </button>
               <button onClick={() => setSelectedSaleDetail(null)} className="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors">
                 Fechar Detalhes
@@ -390,28 +468,12 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
         </div>
       )}
 
-      {selectedSaleDetail && (
-        <div id="mobile-sale-print" aria-hidden="true">
-          <h1>COM STILLO</h1>
-          <h2>Comprovante de Venda</h2>
-          <p><strong>Pedido:</strong> {selectedSaleDetail.id}</p>
-          <p><strong>Data:</strong> {new Date(selectedSaleDetail.date).toLocaleString('pt-BR')}</p>
-          <hr />
-          <p><strong>Cliente:</strong> {selectedSaleDetail.customerName || 'Cliente Balcão'}</p>
-          {selectedSaleDetail.customerPhone && <p><strong>Telefone:</strong> {selectedSaleDetail.customerPhone}</p>}
-          {selectedSaleDetail.customerAddress && <p><strong>Endereço:</strong> {selectedSaleDetail.customerAddress}</p>}
-          <p><strong>Entrega:</strong> {selectedSaleDetail.deliveryType === 'DELIVERY' ? 'Entrega' : 'Retirada'}</p>
-          <table><thead><tr><th>Qtd.</th><th>Produto</th><th>Unitário</th><th>Total</th></tr></thead><tbody>
-            {(selectedSaleDetail.items || []).map((item, index) => <tr key={index}><td>{item.quantity}</td><td>{item.productName}{item.variantName ? ` - ${item.variantName}` : ''}</td><td>{formatCurrency(item.unitPrice)}</td><td>{formatCurrency(item.quantity * item.unitPrice)}</td></tr>)}
-          </tbody></table>
-          <p><strong>Pagamento:</strong> {selectedSaleDetail.paymentMethod || 'Não informado'}</p>
-          <p><strong>Desconto:</strong> {formatCurrency(selectedSaleDetail.discount || 0)}</p>
-          {selectedSaleDetail.paymentType === 'PARTIAL' && <><p><strong>Entrada:</strong> {formatCurrency(selectedSaleDetail.downPayment || 0)}</p><p><strong>Restante:</strong> {formatCurrency(selectedSaleDetail.remainingAmount || 0)} ({selectedSaleDetail.remainingStatus === 'PAID' ? 'Pago' : 'Pendente'})</p></>}
-          <h2 className="print-total">Total: {formatCurrency(selectedSaleDetail.total)}</h2>
-          {selectedSaleDetail.observations && <p><strong>Observações:</strong> {selectedSaleDetail.observations}</p>}
-        </div>
-      )}
-      <style>{`#mobile-sale-print { display: none; } @media print { @page { size: A4; margin: 15mm; } body * { visibility: hidden !important; } #mobile-sale-print, #mobile-sale-print * { visibility: visible !important; } #mobile-sale-print { display: block !important; position: absolute; inset: 0; color: #111; background: #fff; font-family: Arial, sans-serif; font-size: 12pt; line-height: 1.45; } #mobile-sale-print h1 { font-size: 22pt; margin: 0 0 4mm; } #mobile-sale-print h2 { font-size: 15pt; margin: 0 0 5mm; } #mobile-sale-print hr { border: 0; border-top: 1px solid #aaa; margin: 5mm 0; } #mobile-sale-print table { width: 100%; border-collapse: collapse; margin: 7mm 0; } #mobile-sale-print th, #mobile-sale-print td { border-bottom: 1px solid #ccc; padding: 3mm 2mm; text-align: left; } #mobile-sale-print th:nth-child(n+3), #mobile-sale-print td:nth-child(n+3) { text-align: right; } #mobile-sale-print .print-total { text-align: right; font-size: 18pt; margin-top: 8mm; } }`}</style>
+      <SalePrintTemplate
+        sale={selectedSaleDetail}
+        companySettings={companySettings}
+        transactions={transactions}
+        id="mobile-sale-print"
+      />
     </div>
   );
 };

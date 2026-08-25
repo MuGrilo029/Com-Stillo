@@ -228,6 +228,8 @@ export const MobileApp: React.FC<MobileAppProps> = ({
       ) : activeTab === 'HISTORY' ? (
         <MobileSalesHistory
           sales={store?.sales}
+          transactions={store?.transactions}
+          companySettings={store?.companySettings}
         />
       ) : activeTab === 'INVENTORY' ? (
         <MobileInventory

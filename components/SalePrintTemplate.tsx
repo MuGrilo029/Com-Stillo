@@ -6,13 +6,15 @@ interface SalePrintTemplateProps {
   companySettings: CompanySettings;
   transactions: Transaction[];
   id?: string;
+  renderForPdf?: boolean;
 }
 
 export const SalePrintTemplate: React.FC<SalePrintTemplateProps> = ({
   sale,
   companySettings,
   transactions,
-  id = 'printable-order'
+  id = 'printable-order',
+  renderForPdf = false
 }) => {
   if (!sale) return null;
 
@@ -26,7 +28,7 @@ export const SalePrintTemplate: React.FC<SalePrintTemplateProps> = ({
   const paidTotal = paidTransactions.reduce((total, transaction) => total + transaction.amount, 0);
 
   return (
-    <div id={id} className="hidden print:block text-black">
+    <div id={id} className={`${renderForPdf ? 'absolute left-[-10000px] top-0 block' : 'hidden print:block'} text-black`}>
       <div className="w-full h-full font-sans leading-tight p-4 max-w-[210mm] mx-auto">
         <style>{`
           @media print {

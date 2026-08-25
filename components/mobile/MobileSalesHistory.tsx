@@ -21,6 +21,7 @@ import {
 import { CompanySettings, Sale, Transaction } from '../../types';
 import { SalePrintTemplate } from '../SalePrintTemplate';
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface MobileSalesHistoryProps {
   sales?: Sale[];
@@ -108,90 +109,26 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
 
   const printSale = async () => {
     if (!selectedSaleDetail) return;
+    const printable = document.getElementById('mobile-sale-print');
+    if (!printable) return;
 
-    const sale = selectedSaleDetail;
+    const canvas = await html2canvas(printable, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true
+    });
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 15;
-    const right = pageWidth - margin;
-    let y = 18;
-    const money = (value: number) => `R$ ${Number(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const line = (position: number) => pdf.line(margin, position, right, position);
-    const addText = (text: string, x: number, position: number, size = 9, bold = false) => {
-      pdf.setFont('helvetica', bold ? 'bold' : 'normal');
-      pdf.setFontSize(size);
-      pdf.text(text, x, position);
-    };
-
-    addText(companySettings.name || 'COM STILLO', margin, y, 16, true);
-    addText('PEDIDO DE VENDA', right, y, 14, true);
-    pdf.text(`Av. ${companySettings.address || ''} | ${companySettings.phone || ''}`, margin, y + 7);
-    pdf.text(`CNPJ: ${companySettings.cnpj || ''}`, margin, y + 13);
-    pdf.text(`#${sale.id.slice(0, 8)}`, right, y + 7, { align: 'right' });
-    pdf.text(`${new Date(sale.date).toLocaleDateString('pt-BR')} ${new Date(sale.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`, right, y + 13, { align: 'right' });
-    line(y + 17);
-    y += 24;
-
-    pdf.rect(margin, y - 5, pageWidth - margin * 2, 17);
-    addText(`Cliente: ${sale.customerName || 'Cliente Balcão'}`, margin + 3, y + 1, 10, true);
-    addText(`Telefone: ${sale.customerPhone || 'N/A'}`, margin + 3, y + 7, 10, true);
-    addText(`Status: ${sale.status === 'COMPLETED' ? 'CONCLUÍDO' : 'CANCELADO'}`, right - 3, y + 1, 10, true);
-    addText(`Entrega: ${sale.deliveryType === 'DELIVERY' ? 'Domicílio' : 'Retirada'}`, right - 3, y + 7, 10, true);
-    y += 20;
-
-    addText('QTD', margin, y, 8, true);
-    addText('ITEM / DESCRIÇÃO', margin + 15, y, 8, true);
-    addText('UNIT.', right - 42, y, 8, true);
-    addText('TOTAL', right, y, 8, true);
-    line(y + 2);
-    y += 8;
-    sale.items.forEach(item => {
-      const description = item.description ? `${item.productName} - ${item.description}` : item.productName;
-      const wrapped = pdf.splitTextToSize(description, 90);
-      addText(`${item.quantity}x`, margin, y, 8, true);
-      pdf.text(wrapped, margin + 15, y);
-      addText(money(item.unitPrice), right - 42, y, 8);
-      addText(money(item.quantity * item.unitPrice), right, y, 8, true);
-      y += Math.max(6, wrapped.length * 4 + 2);
-      line(y - 2);
-    });
-
-    const subtotal = sale.items.reduce((total, item) => total + item.quantity * item.unitPrice, 0);
-    y += 5;
-    addText(`Subtotal: ${money(subtotal)}`, right - 55, y, 9);
-    addText(`Desconto: - ${money(sale.discount || 0)}`, right - 55, y + 6, 9);
-    line(y + 9);
-    addText(`TOTAL: ${money(sale.total)}`, right - 55, y + 17, 13, true);
-    y += 28;
-    addText(`Forma de Pagamento: ${sale.paymentType === 'PARTIAL' ? 'Parcial / Entrada + Resto' : 'Integral / À Vista'}`, margin, y, 8, true);
-    addText(`Meio: ${sale.paymentMethod || 'N/A'}`, margin + 92, y, 8);
-    if (sale.paymentType === 'PARTIAL') {
-      addText(`Entrada: ${money(sale.downPayment)} (${sale.downPaymentMethod || 'N/A'})`, margin, y + 6, 8);
-      addText(`Restante: ${money(sale.remainingAmount)} (${sale.remainingPaymentMethod || 'N/A'})`, margin + 92, y + 6, 8);
-      y += 6;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imageHeight = (canvas.height * pageWidth) / canvas.width;
+    let offset = 0;
+    while (offset < imageHeight) {
+      if (offset > 0) pdf.addPage();
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, -offset, pageWidth, imageHeight);
+      offset += pageHeight;
     }
-
-    y += 12;
-    line(y - 4);
-    addText('HISTÓRICO DE PAGAMENTOS', margin, y + 2, 8, true);
-    const paidTransactions = transactions.filter(transaction => transaction.status === 'PAID' && transaction.type === 'INCOME' && (transaction.saleId === sale.id || (transaction.description && transaction.description.includes(`Venda #${sale.id.slice(0, 4)}`))));
-    y += 9;
-    paidTransactions.forEach(transaction => {
-      addText(`${new Date(transaction.date).toLocaleDateString('pt-BR')} - ${transaction.category || 'Pagamento'}`, margin, y, 8);
-      addText(money(transaction.amount), right, y, 8, true);
-      y += 5;
-    });
-    if (paidTransactions.length === 0) addText('Nenhum pagamento registrado.', margin, y, 8);
-    addText(`SALDO DEVEDOR: ${money(sale.total - paidTransactions.reduce((total, transaction) => total + transaction.amount, 0))}`, right, y + 7, 9, true);
-    y += 29;
-    line(y);
-    addText(companySettings.name || 'COM STILLO', margin + 25, y + 5, 8, true);
-    addText('Assinatura do Responsável', margin + 21, y + 10, 7);
-    addText(sale.customerName || 'Cliente', right - 55, y + 5, 8, true);
-    addText('Assinatura do Cliente', right - 52, y + 10, 7);
-
     const pdfBlob = pdf.output('blob');
-    const fileName = `comprovante-${sale.id}.pdf`;
+    const fileName = `comprovante-${selectedSaleDetail.id}.pdf`;
     try {
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -473,6 +410,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
         companySettings={companySettings}
         transactions={transactions}
         id="mobile-sale-print"
+        renderForPdf
       />
     </div>
   );

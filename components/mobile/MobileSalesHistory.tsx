@@ -104,7 +104,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
     const printable = document.getElementById('mobile-sale-print');
     if (!printable) return;
 
-    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const isMobileDevice = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches;
     if (!isMobileDevice) {
       window.print();
       return;
@@ -380,7 +380,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
 
             <div className="grid grid-cols-2 gap-2">
               <button onClick={printSale} className="py-3 rounded-2xl bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2">
-                <Receipt size={15} /> {typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 'Compartilhar A4' : 'Imprimir A4'}
+                <Receipt size={15} /> {typeof navigator !== 'undefined' && (navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches) ? 'Compartilhar A4' : 'Imprimir A4'}
               </button>
               <button onClick={() => setSelectedSaleDetail(null)} className="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors">
                 Fechar Detalhes

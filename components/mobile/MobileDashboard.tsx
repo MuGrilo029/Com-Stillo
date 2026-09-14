@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { MobileTab, TimeFilterOption } from './types';
 import { Sale, Product, Transaction } from '../../types';
-import { isInRange } from '../../lib/utils';
+import { isInRange, formatISO } from '../../lib/utils';
 
 interface MobileDashboardProps {
   sales?: Sale[];
@@ -50,47 +50,111 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
   // Metric Computations based on real store data + fallbacks
   const metrics = useMemo(() => {
     const today = new Date();
-    const periodTransactions = transactions.filter(transaction => isInRange(
-      transaction.dueDate || transaction.date,
-      timeFilter,
-      { selectedMonth: today.getMonth(), selectedYear: today.getFullYear() }
-    ));
 
-    const paidIncome = periodTransactions
-      .filter(transaction => transaction.type === 'INCOME' && transaction.status === 'PAID')
-      .reduce((total, transaction) => total + (Number(transaction.amount) || 0), 0);
-    const paidExpenses = periodTransactions
-      .filter(transaction => transaction.type === 'EXPENSE' && transaction.status === 'PAID')
-      .reduce((total, transaction) => total + (Number(transaction.amount) || 0), 0);
+    const getPeriodData = (isPrevious = false) => {
+      let month = today.getMonth();
+      let year = today.getFullYear();
+      let customStart: string | undefined;
+      let customEnd: string | undefined;
 
-    // Keep the same financial definition used by the desktop dashboard.
-    const revenue = paidIncome;
-    const netProfit = paidIncome - paidExpenses;
+      if (isPrevious) {
+        if (timeFilter === 'TODAY') {
+          const yesterday = new Date(today);
+          yesterday.setDate(today.getDate() - 1);
+          const yIso = formatISO(yesterday);
+          customStart = yIso;
+          customEnd = yIso;
+        } else if (timeFilter === 'WEEK') {
+          const twoWeeksAgo = new Date(today);
+          twoWeeksAgo.setDate(today.getDate() - 14);
+          const oneWeekAgo = new Date(today);
+          oneWeekAgo.setDate(today.getDate() - 7);
+          customStart = formatISO(twoWeeksAgo);
+          customEnd = formatISO(oneWeekAgo);
+        } else if (timeFilter === 'MONTH') {
+          month = month === 0 ? 11 : month - 1;
+          year = month === 11 ? year - 1 : year;
+        } else if (timeFilter === 'YEAR') {
+          year = year - 1;
+        }
+      }
 
-    // 2. Lucro Líquido (Estimado com base em CMV e despesas ou margem)
-    // 3. Valor do Estoque
-    let totalStockValue = 0;
-    let totalStockItems = 0;
-    if (products && products.length > 0) {
-      totalStockValue = products.reduce((acc, p) => acc + ((Number(p.cost) || Number(p.price) * 0.6) * (Number(p.quantity) || 0)), 0);
-      totalStockItems = products.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
-    }
+      const effectiveFilter = isPrevious && (timeFilter === 'TODAY' || timeFilter === 'WEEK') ? 'CUSTOM' : timeFilter;
+      const dateOptions = {
+        selectedMonth: month,
+        selectedYear: year,
+        customStart,
+        customEnd
+      };
 
-    // 4. Itens Críticos (Estoque <= minStock ou <= 3)
-    let criticalItemsCount = 0;
-    if (products && products.length > 0) {
-      criticalItemsCount = products.filter(p => (Number(p.quantity) || 0) <= (Number(p.minStock) || 3)).length;
-    }
+      // 1. Faturamento: Todas as vendas ativas (não canceladas) no período
+      const activeSales = sales.filter(s =>
+        s.status !== 'CANCELLED' && isInRange(s.date, effectiveFilter, dateOptions)
+      );
+      const revenue = activeSales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+      const salesCount = activeSales.length;
+
+      // 2. Regime de Caixa (Entradas e Saídas Pagas)
+      const periodTransactions = transactions.filter(t =>
+        isInRange(t.dueDate || t.date, effectiveFilter, dateOptions)
+      );
+      const paidIncome = periodTransactions
+        .filter(t => t.type === 'INCOME' && t.status === 'PAID')
+        .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      const paidExpenses = periodTransactions
+        .filter(t => t.type === 'EXPENSE' && t.status === 'PAID')
+        .reduce((acc, t) => acc + (Number(t.amount) || 0), 0);
+      const netProfit = paidIncome - paidExpenses;
+
+      return { revenue, salesCount, paidIncome, paidExpenses, netProfit };
+    };
+
+    const current = getPeriodData(false);
+    const prev = getPeriodData(true);
+
+    const calcChange = (curr: number, p: number) => {
+      if (!p || p === 0) return curr > 0 ? 100 : 0;
+      return Number((((curr - p) / p) * 100).toFixed(1));
+    };
+
+    const revenueGrowth = calcChange(current.revenue, prev.revenue);
+    const profitGrowth = calcChange(current.netProfit, prev.netProfit);
+
+    // 3. Valor e Itens do Estoque (alinhado 100% com Desktop: custo real)
+    const totalStockValue = (products || []).reduce(
+      (acc, p) => acc + ((Number(p.cost) || 0) * (Number(p.quantity) || 0)),
+      0
+    );
+    const totalStockItems = (products || []).reduce(
+      (acc, p) => acc + (Number(p.quantity) || 0),
+      0
+    );
+
+    // 4. Itens Críticos (minStock cadastrado e quantity <= minStock)
+    const criticalItemsCount = (products || []).filter(
+      p => (Number(p.minStock) || 0) > 0 && (Number(p.quantity) || 0) <= Number(p.minStock)
+    ).length;
+
+    // 5. Meta Mensal de Vendas (baseada nas vendas do mês atual)
+    const monthSales = sales.filter(s =>
+      s.status !== 'CANCELLED' && isInRange(s.date, 'MONTH', { selectedMonth: today.getMonth(), selectedYear: today.getFullYear() })
+    );
+    const monthRevenue = monthSales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+    const goalProgress = Math.min(100, (monthRevenue / 100000) * 100);
 
     return {
-      revenue,
-      revenueGrowth: 8.5,
-      netProfit,
-      profitGrowth: 14.2,
+      revenue: current.revenue,
+      salesCount: current.salesCount,
+      revenueGrowth,
+      paidIncome: current.paidIncome,
+      paidExpenses: current.paidExpenses,
+      netProfit: current.netProfit,
+      profitGrowth,
       totalStockValue,
       totalStockItems,
       criticalItemsCount,
-      goalProgress: Math.min(100, (revenue / 100000) * 100)
+      monthRevenue,
+      goalProgress
     };
   }, [sales, products, transactions, timeFilter]);
 
@@ -162,22 +226,27 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-300">
               Lucro Líquido
             </span>
-            <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-              <TrendingUp size={15} />
+            <div className={`w-7 h-7 rounded-xl ${metrics.netProfit >= 0 ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400' : 'bg-red-500/10 border-red-500/25 text-red-400'} border flex items-center justify-center`}>
+              {metrics.netProfit >= 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
             </div>
           </div>
 
           <div className="my-1.5">
-            <h3 className="text-base sm:text-lg font-black text-white tracking-tight leading-none">
+            <h3 className={`text-base sm:text-lg font-black tracking-tight leading-none ${metrics.netProfit >= 0 ? 'text-white' : 'text-rose-400'}`}>
               {formatCurrency(metrics.netProfit)}
             </h3>
           </div>
 
           <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/20">
-              <ArrowUpRight size={10} /> +{metrics.profitGrowth}%
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold border ${
+              metrics.profitGrowth >= 0
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+                : 'bg-red-500/15 text-red-300 border-red-500/20'
+            }`}>
+              {metrics.profitGrowth >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+              {metrics.profitGrowth >= 0 ? `+${metrics.profitGrowth}%` : `${metrics.profitGrowth}%`}
             </span>
-            <span className="text-[10px] text-slate-400 truncate">vs anterior</span>
+            <span className="text-[10px] text-slate-400 truncate">saldo caixa</span>
           </div>
         </div>
 
@@ -199,10 +268,17 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 pt-1 border-t border-white/5">
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-[10px] font-extrabold border border-emerald-500/20">
-              <ArrowUpRight size={10} /> +{metrics.revenueGrowth}%
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold border ${
+              metrics.revenueGrowth >= 0
+                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/20'
+                : 'bg-red-500/15 text-red-300 border-red-500/20'
+            }`}>
+              {metrics.revenueGrowth >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+              {metrics.revenueGrowth >= 0 ? `+${metrics.revenueGrowth}%` : `${metrics.revenueGrowth}%`}
             </span>
-            <span className="text-[10px] text-slate-400 truncate">receita bruta</span>
+            <span className="text-[10px] text-slate-400 truncate">
+              {metrics.salesCount} {metrics.salesCount === 1 ? 'venda' : 'vendas'}
+            </span>
           </div>
         </div>
 
@@ -325,12 +401,12 @@ export const MobileDashboard: React.FC<MobileDashboardProps> = ({
         <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-white/5">
           <div
             className="h-full rounded-full bg-gradient-to-r from-red-800 via-rose-600 to-emerald-400 transition-all duration-1000 shadow-sm"
-            style={{ width: `${Math.min(100, (metrics.revenue / 100000) * 100)}%` }}
+            style={{ width: `${metrics.goalProgress}%` }}
           />
         </div>
 
         <div className="flex items-center justify-between text-[11px] text-slate-400">
-          <span>Realizado: <strong className="text-white">{formatCurrency(metrics.revenue)}</strong></span>
+          <span>Realizado: <strong className="text-white">{formatCurrency(metrics.monthRevenue)}</strong></span>
           <span>Meta: <strong className="text-slate-300">R$ 100.000</strong></span>
         </div>
       </div>

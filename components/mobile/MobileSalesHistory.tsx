@@ -16,7 +16,8 @@ import {
   Share2,
   FileText,
   DollarSign,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { CompanySettings, Sale, Transaction } from '../../types';
 import { SalePrintTemplate } from '../SalePrintTemplate';
@@ -39,6 +40,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING' | 'TODAY' | 'WEEK'>('ALL');
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<Sale | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const allSales: Sale[] = useMemo(() => sales, [sales]);
 
@@ -104,46 +106,77 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
   };
 
   const totalFilteredAmount = useMemo(() => {
-    return filteredSales.reduce((acc, s) => acc + (Number(s.total) || 0), 0);
+    return filteredSales
+      .filter((s) => s.status !== 'CANCELLED')
+      .reduce((acc, s) => acc + (Number(s.total) || 0), 0);
   }, [filteredSales]);
 
   const printSale = async () => {
-    if (!selectedSaleDetail) return;
+    if (!selectedSaleDetail || isGeneratingPdf) return;
     const printable = document.getElementById('mobile-sale-print');
     if (!printable) return;
 
-    const canvas = await html2canvas(printable, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true
-    });
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imageHeight = (canvas.height * pageWidth) / canvas.width;
-    let offset = 0;
-    while (offset < imageHeight) {
-      if (offset > 0) pdf.addPage();
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, -offset, pageWidth, imageHeight);
-      offset += pageHeight;
-    }
-    const pdfBlob = pdf.output('blob');
-    const fileName = `comprovante-${selectedSaleDetail.id}.pdf`;
+    setIsGeneratingPdf(true);
+
     try {
-      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: 'Comprovante de venda', files: [file] });
-        return;
+      const canvas = await html2canvas(printable, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        width: 794,
+        windowWidth: 1024
+      });
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
-    } catch (error) {
-      if ((error as DOMException).name === 'AbortError') return;
+
+      const pdfBlob = pdf.output('blob');
+      const safeCustomerName = (selectedSaleDetail.customerName || 'venda')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .slice(0, 25);
+      const fileName = `Pedido-${safeCustomerName}.pdf`;
+
+      try {
+        const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+        if (navigator.share && navigator.canShare?.({ files: [file] })) {
+          await navigator.share({
+            title: `Pedido - ${selectedSaleDetail.customerName || 'Com Stillo'}`,
+            files: [file]
+          });
+          return;
+        }
+      } catch (error) {
+        if ((error as DOMException).name === 'AbortError') return;
+      }
+
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = fileName;
+      downloadLink.click();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+    } finally {
+      setIsGeneratingPdf(false);
     }
-    const downloadUrl = URL.createObjectURL(pdfBlob);
-    const downloadLink = document.createElement('a');
-    downloadLink.href = downloadUrl;
-    downloadLink.download = fileName;
-    downloadLink.click();
-    URL.revokeObjectURL(downloadUrl);
   };
 
   return (
@@ -167,7 +200,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
         <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
-          placeholder="Buscar por cliente ou nº do pedido..."
+          placeholder="Buscar por cliente..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-[#182234] border border-white/10 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/50"
@@ -227,24 +260,17 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
               >
                 {/* Left: Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono font-bold text-rose-300">
-                      {sale.id.startsWith('#') ? sale.id : `#${sale.id}`}
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      {formatDateTime(sale.date)}
-                    </span>
-                  </div>
-
-                  <h4 className="text-xs sm:text-sm font-bold text-white truncate group-hover:text-rose-200 transition-colors">
+                  <h4 className="text-sm font-extrabold text-white truncate group-hover:text-rose-200 transition-colors mb-1">
                     {sale.customerName || 'Cliente Balcão'}
                   </h4>
 
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="text-[10px] font-semibold text-slate-300 bg-[#111827] px-2 py-0.5 rounded-md border border-white/5 truncate max-w-[130px]">
+                  <div className="flex items-center gap-2 flex-wrap text-[10px] text-slate-400">
+                    <span>{formatDateTime(sale.date)}</span>
+                    <span className="text-slate-600">•</span>
+                    <span className="font-semibold text-slate-300 bg-[#111827] px-2 py-0.5 rounded-md border border-white/5 truncate max-w-[120px]">
                       {sale.paymentMethod || 'À Vista'}
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-slate-500">
                       {(sale.items || []).length} {(sale.items || []).length === 1 ? 'item' : 'itens'}
                     </span>
                   </div>
@@ -294,7 +320,7 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-white flex items-center gap-1.5">
-                    Pedido {selectedSaleDetail.id}
+                    {selectedSaleDetail.customerName || 'Detalhes da Venda'}
                   </h3>
                   <p className="text-[10px] text-slate-400">{formatDateTime(selectedSaleDetail.date)}</p>
                 </div>
@@ -394,10 +420,25 @@ export const MobileSalesHistory: React.FC<MobileSalesHistoryProps> = ({
             )}
 
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={printSale} className="py-3 rounded-2xl bg-rose-900 hover:bg-rose-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2">
-                <Receipt size={15} /> Salvar / Compartilhar PDF
+              <button
+                onClick={printSale}
+                disabled={isGeneratingPdf}
+                className="py-3 rounded-2xl bg-rose-900 hover:bg-rose-800 disabled:opacity-60 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2"
+              >
+                {isGeneratingPdf ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" /> Gerando A4...
+                  </>
+                ) : (
+                  <>
+                    <Receipt size={15} /> Salvar / Enviar PDF
+                  </>
+                )}
               </button>
-              <button onClick={() => setSelectedSaleDetail(null)} className="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors">
+              <button
+                onClick={() => setSelectedSaleDetail(null)}
+                className="py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors"
+              >
                 Fechar Detalhes
               </button>
             </div>

@@ -52,11 +52,11 @@ export const MobileInventory: React.FC<MobileInventoryProps> = ({
   }, [catalogProducts]);
 
   const totalStockValue = useMemo(() => {
-    return catalogProducts.reduce((acc, p) => acc + ((Number(p.cost) || Number(p.price) * 0.6) * (Number(p.quantity) || 0)), 0);
+    return catalogProducts.reduce((acc, p) => acc + ((Number(p.cost) || 0) * (Number(p.quantity) || 0)), 0);
   }, [catalogProducts]);
 
   const criticalProductsCount = useMemo(() => {
-    return catalogProducts.filter(p => (Number(p.quantity) || 0) <= (Number(p.minStock) || 2)).length;
+    return catalogProducts.filter(p => (Number(p.minStock) || 0) > 0 && (Number(p.quantity) || 0) <= Number(p.minStock)).length;
   }, [catalogProducts]);
 
   // Categories list
@@ -78,7 +78,7 @@ export const MobileInventory: React.FC<MobileInventoryProps> = ({
 
       const matchCategory = selectedCategory === 'TODOS' || p.category === selectedCategory;
 
-      const isCritical = (Number(p.quantity) || 0) <= (Number(p.minStock) || 2);
+      const isCritical = (Number(p.minStock) || 0) > 0 && (Number(p.quantity) || 0) <= Number(p.minStock);
       const matchCritical = !onlyCriticalFilter || isCritical;
 
       return matchSearch && matchCategory && matchCritical;
@@ -235,9 +235,9 @@ export const MobileInventory: React.FC<MobileInventoryProps> = ({
         ) : (
           filteredProducts.map((product) => {
             const qty = Number(product.quantity) || 0;
-            const min = Number(product.minStock) || 2;
+            const min = Number(product.minStock) || 0;
             const isZero = qty === 0;
-            const isLow = qty > 0 && qty <= min;
+            const isLow = min > 0 && qty <= min;
 
             return (
               <div
@@ -355,7 +355,7 @@ export const MobileInventory: React.FC<MobileInventoryProps> = ({
                   <Edit3 size={13} className="text-rose-400" /> Ajuste Rápido de Quantidade
                 </span>
                 <span className="text-[11px] font-semibold text-slate-400">
-                  Mínimo: {selectedProduct.minStock || 2} un
+                  Mínimo: {selectedProduct.minStock ? `${selectedProduct.minStock} un` : 'Não definido'}
                 </span>
               </div>
 

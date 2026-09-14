@@ -28,8 +28,29 @@ export const SalePrintTemplate: React.FC<SalePrintTemplateProps> = ({
   const paidTotal = paidTransactions.reduce((total, transaction) => total + transaction.amount, 0);
 
   return (
-    <div id={id} className={`${renderForPdf ? 'absolute left-[-10000px] top-0 block' : 'hidden print:block'} text-black`}>
-      <div className="w-full h-full font-sans leading-tight p-4 max-w-[210mm] mx-auto">
+    <div
+      id={id}
+      style={renderForPdf ? {
+        position: 'fixed',
+        left: '-9999px',
+        top: 0,
+        width: '794px',
+        minHeight: '1123px',
+        backgroundColor: '#ffffff',
+        boxSizing: 'border-box',
+        zIndex: -9999
+      } : undefined}
+      className={`${renderForPdf ? 'block' : 'hidden print:block'} text-black`}
+    >
+      <div
+        style={renderForPdf ? {
+          width: '794px',
+          boxSizing: 'border-box',
+          padding: '16mm 18mm',
+          backgroundColor: '#ffffff'
+        } : undefined}
+        className="w-full h-full font-sans leading-tight p-4 max-w-[210mm] mx-auto"
+      >
         <style>{`
           @media print {
             @page { margin: 0; size: auto; }

@@ -47,9 +47,12 @@ serve(async (req: Request) => {
       currency: 'BRL'
     });
 
+    // Nome do cliente ou comprador
+    const clienteNome = sale.customer_name || sale.customerName || sale.cliente || 'Cliente';
+
     const pushPayload = JSON.stringify({
-      title: 'COM STILLO - Venda Finalizada!',
-      body: `Nova venda registrada no valor de ${valorFormatado}`,
+      title: `${clienteNome} • Nova Venda`,
+      body: `Venda no valor de ${valorFormatado} registrada com sucesso!`,
       icon: '/favicon.svg',
       badge: '/favicon.svg',
       metadata: {
@@ -57,6 +60,7 @@ serve(async (req: Request) => {
         url: '/'
       }
     });
+
 
     // Buscar todas as inscrições ativas no banco de dados
     const { data: subscriptions, error: subError } = await supabase

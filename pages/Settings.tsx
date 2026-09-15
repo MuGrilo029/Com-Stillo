@@ -9,6 +9,8 @@ import { Category, User, CategoryType, UserRole, CategoryGroup, CardFee } from '
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency, formatISO, getUUID } from '../lib/utils';
+import { PushNotificationStatus } from '../components/PushNotificationProvider';
+
 
 export const Settings: React.FC = () => {
   const {
@@ -519,8 +521,19 @@ export const Settings: React.FC = () => {
             <div className="pt-4">
               <Button type="submit">Salvar Alterações</Button>
             </div>
+
+            <div className="pt-6 border-t border-wine-100 dark:border-slate-700">
+              <h4 className="text-sm font-bold text-wine-900 dark:text-white mb-2 uppercase tracking-wide">
+                Notificações no Dispositivo (Web Push / PWA)
+              </h4>
+              <p className="text-xs text-wine-500 dark:text-slate-400 mb-4">
+                Ative para receber alertas sonoros e notificações push instantâneas quando novas vendas forem registradas no sistema.
+              </p>
+              <PushNotificationStatus />
+            </div>
           </form>
         )}
+
 
         {/* TAB: CATEGORIES */}
         {activeTab === 'CATEGORIES' && (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { MobileTab, MobileCartItem } from './types';
 import { MobileLayout } from './MobileLayout';
 import { MobileDashboard } from './MobileDashboard';
@@ -7,8 +7,9 @@ import { MobileSalesHistory } from './MobileSalesHistory';
 import { MobileInventory } from './MobileInventory';
 import { useAppStore } from '../../store';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRealtimeSales } from '../../hooks/useRealtimeSales';
 import { Product, Sale } from '../../types';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, X, TrendingUp } from 'lucide-react';
 
 interface MobileAppProps {
   initialTab?: MobileTab;
@@ -31,12 +32,25 @@ export const MobileApp: React.FC<MobileAppProps> = ({
 
   // Toast / Mobile Notification System
   const [mobileToasts, setMobileToasts] = useState<{ id: string; message: string; type: 'success' | 'info' | 'error' }[]>([]);
+  
+  // Real-time Sale Notification
+  const [saleNotifications, setSaleNotifications] = useState<Array<{ id: string; sale: Sale; timestamp: Date }>>([]);
 
   const addToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
     setMobileToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setMobileToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  };
+
+  const handleNewSale = useCallback((notification: { id: string; sale: Sale; timestamp: Date }) => {
+    setSaleNotifications((prev) => [notification, ...prev]);
+    addToast(`💰 Nova venda! ${notification.sale.customerName} - ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(notification.sale.total)}`, 'success');
+  }, []);
+
+  // Enable real-time sales monitoring
+  useRealtimeSales(handleNewSale);
     }, 3000);
   };
 
@@ -190,6 +204,29 @@ export const MobileApp: React.FC<MobileAppProps> = ({
           </div>
         ))}
       </div>
+
+      {/* Real-time Sale Notification Banner */}
+      {saleNotifications.length > 0 && (
+        <div className="fixed top-2 left-2 right-2 z-40 pointer-events-auto">
+          <div className="bg-gradient-to-r from-emerald-900 to-teal-900 border border-emerald-600/60 rounded-2xl p-3 shadow-2xl shadow-emerald-950/50 flex items-center justify-between gap-2 animate-slide-down">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="animate-pulse">
+                <TrendingUp size={18} className="text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Nova Venda do Desktop!</p>
+                <p className="text-xs font-bold text-white truncate">{saleNotifications[0].sale.customerName}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setSaleNotifications((prev) => prev.slice(1))}
+              className="p-1.5 text-emerald-300 hover:text-white rounded-full hover:bg-emerald-800/50 shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Screen Switcher */}
       {!store.isInitialized ? (

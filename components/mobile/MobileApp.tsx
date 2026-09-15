@@ -89,34 +89,27 @@ export const MobileApp: React.FC<MobileAppProps> = ({
   };
 
   // Complete Sale
-  const handleCompleteSale = async (saleData: {
-    id: string;
-    date: string;
-    customerName: string;
-    paymentMethod: string;
-    total: number;
-    items: MobileCartItem[];
-  }): Promise<boolean> => {
-    // Register in global store if available
+  const handleCompleteSale = async (saleData: Omit<Sale, 'status'> & { items: MobileCartItem[] }): Promise<boolean> => {
     if (store && store.addSale) {
       const newSale: Sale = {
         id: saleData.id,
         customerName: saleData.customerName,
-        customerPhone: '',
-        customerAddress: '',
-        deliveryType: 'PICKUP',
+        customerPhone: saleData.customerPhone || '',
+        customerAddress: saleData.customerAddress || '',
+        deliveryType: saleData.deliveryType || 'PICKUP',
         date: saleData.date,
         total: saleData.total,
-        discount: 0,
+        discount: saleData.discount || 0,
         paymentMethod: saleData.paymentMethod,
-        paymentType: 'FULL',
-        downPayment: saleData.total,
-        downPaymentMethod: saleData.paymentMethod,
-        remainingAmount: 0,
-        remainingPaymentMethod: saleData.paymentMethod,
-        remainingStatus: 'PAID',
+        paymentType: saleData.paymentType || 'FULL',
+        downPayment: saleData.downPayment,
+        downPaymentMethod: saleData.downPaymentMethod,
+        remainingAmount: saleData.remainingAmount,
+        remainingPaymentMethod: saleData.remainingPaymentMethod,
+        remainingStatus: saleData.remainingStatus || 'PAID',
         status: 'COMPLETED',
-        observations: '',
+        observations: saleData.observations || '',
+        deliveryDate: saleData.deliveryDate,
         items: saleData.items.map((it) => ({
           productId: it.productId,
           productName: it.name,

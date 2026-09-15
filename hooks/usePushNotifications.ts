@@ -99,11 +99,12 @@ export const usePushNotifications = () => {
       }
 
       // 3. Obter chave VAPID pública do frontend
-      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+      const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY || 'BDaCcFQo07MriDvAVeOKC1Wznfk70Se-IWamziucYk0hoW5086EiVQLOMDE-O0gLd3DuMxrd1peE-VFYhoHaaEc';
       if (!vapidPublicKey) {
         setError('Chave VAPID não configurada no servidor');
         return false;
       }
+
 
       // 4. Converter chave VAPID para base64
       const urlBase64ToUint8Array = (base64String: string) => {

@@ -51,8 +51,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({
 
   // Enable real-time sales monitoring
   useRealtimeSales(handleNewSale);
-    }, 3000);
-  };
+
 
   // Cart Actions
   const handleAddToCart = (product: Product, quantity = 1) => {

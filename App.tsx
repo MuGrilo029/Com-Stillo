@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AppProvider, useAppStore } from './store';
+import { AuthProvider } from './contexts/AuthContext';
+import { PushNotificationProvider } from './components/PushNotificationProvider';
 import { AppView } from './types';
 import { Dashboard } from './pages/Dashboard';
 import { Financial } from './pages/Financial';
@@ -467,10 +469,13 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <AppProvider>
-        <AppContent />
+        <PushNotificationProvider autoEnable={true}>
+          <AppContent />
+        </PushNotificationProvider>
       </AppProvider>
     </AuthProvider>
   );
 };
+
 
 export default App;

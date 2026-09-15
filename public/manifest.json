@@ -1,0 +1,20 @@
+{
+  "name": "COM STILLO | Gestão Pro ERP",
+  "short_name": "Gestão Pro",
+  "description": "Sistema de Gestão Comercial e ERP Com Stillo",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

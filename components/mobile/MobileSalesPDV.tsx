@@ -39,12 +39,17 @@ import { getUUID } from '../../lib/utils';
 
 type CheckoutStep = 'CART' | 'CUSTOMER' | 'PAYMENT' | 'REVIEW';
 
-type PaymentMethodId = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'CASH' | 'BOLETO';
+type PaymentMethodId = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'CASH';
 
 interface PaymentMethod {
   id: PaymentMethodId;
   label: string;
   icon: React.FC<{ size?: number; className?: string }>;
+}
+
+interface CardFee {
+  installments: number;
+  percentage: number;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -53,6 +58,7 @@ interface MobileSalesPDVProps {
   products?: Product[];
   customers?: Customer[];
   cart: MobileCartItem[];
+  cardFees?: CardFee[];
   onAddToCart: (product: Product, quantity?: number) => void;
   onUpdateCartItemQty: (itemId: string, newQty: number) => void;
   onRemoveCartItem: (itemId: string) => void;
@@ -67,7 +73,6 @@ const PAYMENT_METHODS: PaymentMethod[] = [
   { id: 'CREDIT_CARD', label: 'Crédito', icon: CreditCard },
   { id: 'DEBIT_CARD', label: 'Débito', icon: CreditCard },
   { id: 'CASH', label: 'Dinheiro', icon: Banknote },
-  { id: 'BOLETO', label: 'Boleto', icon: FileText },
 ];
 
 const PM_LABEL: Record<PaymentMethodId, string> = {
@@ -75,8 +80,18 @@ const PM_LABEL: Record<PaymentMethodId, string> = {
   CREDIT_CARD: 'Cartão Crédito',
   DEBIT_CARD: 'Cartão Débito',
   CASH: 'Dinheiro',
-  BOLETO: 'Boleto',
 };
+
+// Taxas padrão de cartão (será substituído pelos dados do store)
+const DEFAULT_CARD_FEES: CardFee[] = [
+  { installments: 0, percentage: 0 },   // Débito
+  { installments: 1, percentage: 0 },   // Crédito à vista
+  { installments: 2, percentage: 2.99 },
+  { installments: 3, percentage: 4.99 },
+  { installments: 4, percentage: 6.99 },
+  { installments: 5, percentage: 8.99 },
+  { installments: 6, percentage: 10.99 },
+];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -84,6 +99,7 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
   products = [],
   customers = [],
   cart,
+  cardFees = DEFAULT_CARD_FEES,
   onAddToCart,
   onUpdateCartItemQty,
   onRemoveCartItem,
@@ -123,8 +139,11 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
   const [discountInput, setDiscountInput] = useState('0');
   const [isPartial, setIsPartial] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodId>('PIX');
+  const [installments, setInstallments] = useState(1);
   const [downPaymentMethod, setDownPaymentMethod] = useState<PaymentMethodId>('PIX');
+  const [downPaymentInstallments, setDownPaymentInstallments] = useState(1);
   const [remainingPaymentMethod, setRemainingPaymentMethod] = useState<PaymentMethodId>('CREDIT_CARD');
+  const [remainingInstallments, setRemainingInstallments] = useState(1);
   const [downPaymentInput, setDownPaymentInput] = useState('0');
   const [isRemainingPaidNow, setIsRemainingPaidNow] = useState(false);
 
@@ -219,10 +238,22 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
     setDiscountInput('0');
     setIsPartial(false);
     setPaymentMethod('PIX');
+    setInstallments(1);
     setDownPaymentMethod('PIX');
+    setDownPaymentInstallments(1);
     setRemainingPaymentMethod('CREDIT_CARD');
+    setRemainingInstallments(1);
     setDownPaymentInput('0');
     setIsRemainingPaidNow(false);
+  };
+
+  // ── Calculate Card Fee ────────────────────────────────────────────────────────
+  const calculateFeeAmount = (amount: number, method: PaymentMethodId, inst: number) => {
+    if (method !== 'CREDIT_CARD' && method !== 'DEBIT_CARD') return 0;
+    const actualInst = method === 'DEBIT_CARD' ? 0 : inst;
+    const fee = cardFees.find(f => f.installments === actualInst);
+    if (!fee) return 0;
+    return (amount * fee.percentage) / 100;
   };
 
   // ── Finish Sale ───────────────────────────────────────────────────────────
@@ -255,6 +286,13 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
       remainingPaymentMethod: isPartial ? remainingPaymentMethod : undefined,
       remainingAmount: isPartial ? remainingAmount : 0,
       remainingStatus: isPartial ? (isRemainingPaidNow ? 'PAID' : 'PENDING') : 'PAID',
+      cardInstallments: isPartial ? remainingInstallments : installments,
+      cardFeeAmount: isPartial
+        ? (calculateFeeAmount(downPayment, downPaymentMethod, downPaymentInstallments) + calculateFeeAmount(remainingAmount, remainingPaymentMethod, remainingInstallments))
+        : calculateFeeAmount(total, paymentMethod, installments),
+      cardFeePercentage: isPartial
+        ? undefined
+        : (cardFees.find(f => f.installments === installments)?.percentage),
       items: [...cart],
     };
 
@@ -827,11 +865,39 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
 
           {/* FULL PAYMENT */}
           {!isPartial && (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 animate-fade-in-fast">
               <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
                 Forma de Pagamento
               </label>
               <PaymentSelector value={paymentMethod} onChange={setPaymentMethod} />
+
+              {/* Installments for Credit Card */}
+              {paymentMethod === 'CREDIT_CARD' && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">Parcelar em quantas vezes?</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {cardFees.filter(f => f.installments > 0).map(fee => (
+                      <button
+                        key={fee.installments}
+                        onClick={() => setInstallments(fee.installments)}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                          installments === fee.installments
+                            ? 'bg-rose-900/80 border-rose-500 text-white'
+                            : 'bg-[#111827] border-white/5 text-slate-400 hover:border-white/20'
+                        }`}
+                      >
+                        <span>{fee.installments}x</span>
+                        {fee.percentage > 0 && <span className="text-[9px] text-slate-300">{fee.percentage}%</span>}
+                      </button>
+                    ))}
+                  </div>
+                  {installments > 1 && (
+                    <div className="text-[10px] text-slate-400 px-1">
+                      Taxa: <span className="text-rose-300 font-bold">{fmt(calculateFeeAmount(total, paymentMethod, installments))}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -858,6 +924,33 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Método da Entrada</label>
                   <PaymentSelector value={downPaymentMethod} onChange={setDownPaymentMethod} />
+                  
+                  {downPaymentMethod === 'CREDIT_CARD' && (
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Parcelar em quantas vezes?</label>
+                      <div className="grid grid-cols-4 gap-1">
+                        {cardFees.filter(f => f.installments > 0).slice(0, 4).map(fee => (
+                          <button
+                            key={fee.installments}
+                            onClick={() => setDownPaymentInstallments(fee.installments)}
+                            className={`flex flex-col items-center justify-center p-1.5 rounded-lg border text-[9px] font-bold transition-all ${
+                              downPaymentInstallments === fee.installments
+                                ? 'bg-rose-900/80 border-rose-500 text-white'
+                                : 'bg-[#0B0F19] border-white/5 text-slate-400 hover:border-white/20'
+                            }`}
+                          >
+                            <span>{fee.installments}x</span>
+                            {fee.percentage > 0 && <span className="text-[8px]">{fee.percentage}%</span>}
+                          </button>
+                        ))}
+                      </div>
+                      {downPaymentInstallments > 1 && (
+                        <div className="text-[9px] text-slate-400">
+                          Taxa: <span className="text-rose-300 font-bold">{fmt(calculateFeeAmount(downPayment, downPaymentMethod, downPaymentInstallments))}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -873,6 +966,33 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Método do Restante</label>
                   <PaymentSelector value={remainingPaymentMethod} onChange={setRemainingPaymentMethod} />
+                  
+                  {remainingPaymentMethod === 'CREDIT_CARD' && (
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Parcelar em quantas vezes?</label>
+                      <div className="grid grid-cols-4 gap-1">
+                        {cardFees.filter(f => f.installments > 0).slice(0, 4).map(fee => (
+                          <button
+                            key={fee.installments}
+                            onClick={() => setRemainingInstallments(fee.installments)}
+                            className={`flex flex-col items-center justify-center p-1.5 rounded-lg border text-[9px] font-bold transition-all ${
+                              remainingInstallments === fee.installments
+                                ? 'bg-rose-900/80 border-rose-500 text-white'
+                                : 'bg-[#0B0F19] border-white/5 text-slate-400 hover:border-white/20'
+                            }`}
+                          >
+                            <span>{fee.installments}x</span>
+                            {fee.percentage > 0 && <span className="text-[8px]">{fee.percentage}%</span>}
+                          </button>
+                        ))}
+                      </div>
+                      {remainingInstallments > 1 && (
+                        <div className="text-[9px] text-slate-400">
+                          Taxa: <span className="text-rose-300 font-bold">{fmt(calculateFeeAmount(remainingAmount, remainingPaymentMethod, remainingInstallments))}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Status do Restante */}
@@ -1035,9 +1155,27 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
             <div className="h-px bg-white/10" />
 
             {!isPartial ? (
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-400">Pagamento:</span>
-                <span className="font-bold text-white">{PM_LABEL[paymentMethod]}</span>
+              <div className="flex flex-col gap-1.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Pagamento:</span>
+                  <span className="font-bold text-white">{PM_LABEL[paymentMethod]}</span>
+                </div>
+                {paymentMethod === 'CREDIT_CARD' && installments > 1 && (
+                  <>
+                    <div className="flex justify-between text-slate-400">
+                      <span>{installments}x de</span>
+                      <span className="font-bold text-white">{fmt(total / installments)}</span>
+                    </div>
+                    <div className="flex justify-between text-rose-400">
+                      <span>Taxa de Parcelamento</span>
+                      <span className="font-bold">+ {fmt(calculateFeeAmount(total, paymentMethod, installments))}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-400 border-t border-white/10 pt-1.5 font-bold">
+                      <span>Total com Taxa</span>
+                      <span>{fmt(total + calculateFeeAmount(total, paymentMethod, installments))}</span>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-1.5 text-xs">
@@ -1045,12 +1183,24 @@ export const MobileSalesPDV: React.FC<MobileSalesPDVProps> = ({
                   <span className="text-emerald-400 font-bold">Entrada ({PM_LABEL[downPaymentMethod]})</span>
                   <span className="font-black text-emerald-400">{fmt(downPayment)}</span>
                 </div>
+                {downPaymentMethod === 'CREDIT_CARD' && downPaymentInstallments > 1 && (
+                  <div className="flex justify-between text-slate-400 text-[10px] ml-2">
+                    <span>{downPaymentInstallments}x</span>
+                    <span className="text-rose-300">+ {fmt(calculateFeeAmount(downPayment, downPaymentMethod, downPaymentInstallments))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className={`font-bold ${isRemainingPaidNow ? 'text-emerald-400' : 'text-amber-400'}`}>
                     Restante ({PM_LABEL[remainingPaymentMethod]}) — {isRemainingPaidNow ? 'Pago Agora' : 'A Receber'}
                   </span>
                   <span className={`font-black ${isRemainingPaidNow ? 'text-emerald-400' : 'text-amber-400'}`}>{fmt(remainingAmount)}</span>
                 </div>
+                {remainingPaymentMethod === 'CREDIT_CARD' && remainingInstallments > 1 && (
+                  <div className="flex justify-between text-slate-400 text-[10px] ml-2">
+                    <span>{remainingInstallments}x</span>
+                    <span className="text-rose-300">+ {fmt(calculateFeeAmount(remainingAmount, remainingPaymentMethod, remainingInstallments))}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

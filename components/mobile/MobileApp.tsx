@@ -212,6 +212,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({
           products={store?.products}
           customers={store?.customers}
           cart={cart}
+          cardFees={store?.cardFees}
           onAddToCart={handleAddToCart}
           onUpdateCartItemQty={handleUpdateCartItemQty}
           onRemoveCartItem={handleRemoveCartItem}
